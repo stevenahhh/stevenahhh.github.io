@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko" data-bs-theme="auto">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post - ahh</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    (() => {
+      const getPreferredTheme = () => {
+        const storedTheme = localStorage.getItem('theme')
+        if (storedTheme) return storedTheme
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+      document.documentElement.setAttribute('data-bs-theme', getPreferredTheme())
+    })()
+  </script>
+  <style>
+    .post-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+    }
+
+    .post-content pre {
+      background: var(--bs-tertiary-bg);
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+
+    .post-content blockquote {
+      border-left: 4px solid var(--bs-primary);
+      padding-left: 1rem;
+      color: var(--bs-secondary-color);
+    }
+  </style>
+</head>
+
+<body class="d-flex flex-column h-100">
+  <nav class="navbar navbar-expand-lg">
+    <div class="container">
+      <a class="navbar-brand p-0" href="/">ahh</a>
+      <div class="navbar-nav ms-auto flex-row">
+        <a class="nav-link me-3" href="/about/">About</a>
+        <a class="nav-link me-3" href="/portfolio/">Portfolio</a>
+        <button class="btn btn-link nav-link p-0" id="theme-toggle" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half"
+            viewBox="0 0 16 16">
+            <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container mt-5 flex-shrink-0">
+    <article id="post-container">
+      <header class="mb-5">
+        <h1 id="post-title" class="fw-bold mb-2">Loading...</h1>
+        <p id="post-date" class="text-muted font-monospace"></p>
+      </header>
+      <div id="post-content" class="post-content"></div>
+    </article>
+  </main>
+
+  <footer class="footer mt-auto py-3">
+    <div class="container text-center">
+      <span class="text-muted small">© 2024 ahh</span>
+    </div>
+  </footer>
+
+  <script>
+    async function loadPost() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const postId = urlParams.get('id');
+      if (!postId) {
+        window.location.href = '/';
+        return;
+      }
+
+      try {
+        const response = await fetch(`/_posts/${postId}.md`);
+        if (!response.ok) throw new Error('Post not found');
+
+        let text = await response.text();
+
+        // Remove frontmatter
+        const frontmatterMatch = text.match(/^---\r?\n([\s\S]+?)\r?\n---/);
+        let title = postId;
+        let date = '';
+
+        if (frontmatterMatch) {
+          const yaml = frontmatterMatch[1];
+          yaml.split('\n').forEach(line => {
+            const [key, ...val] = line.split(':');
+            if (key.trim() === 'title') title = val.join(':').trim();
+            if (key.trim() === 'date') date = val.join(':').trim();
+          });
+          text = text.replace(frontmatterMatch[0], '');
+        }
+
+        document.title = `${title} - ahh`;
+        document.getElementById('post-title').textContent = title;
+        document.getElementById('post-date').textContent = date;
+        document.getElementById('post-content').innerHTML = marked.parse(text);
+      } catch (e) {
+        document.getElementById('post-title').textContent = 'Error';
+        document.getElementById('post-content').innerHTML = '<p>포스트를 불러오는데 실패했습니다.</p>';
+      }
+    }
+
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-bs-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    });
+
+    loadPost();
+  </script>
+</body>
+
+</html>

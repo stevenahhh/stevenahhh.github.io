@@ -12,9 +12,8 @@
   <link rel="stylesheet" href="/assets/css/style.css">
   <script>
     (() => {
-      const getStoredTheme = () => localStorage.getItem('theme')
       const getPreferredTheme = () => {
-        const storedTheme = getStoredTheme()
+        const storedTheme = localStorage.getItem('theme')
         if (storedTheme) return storedTheme
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
       }
@@ -41,7 +40,7 @@
   </nav>
 
   <main class="container flex-shrink-0">
-    <div id="virtual-list-viewport" style="min-height: 80vh;">
+    <div id="virtual-list-viewport" style="min-height: 80vh; position: relative;">
       <div id="virtual-list-spacer"></div>
       <div id="virtual-list-content" style="position: absolute; top: 0; left: 0; width: 100%;"></div>
     </div>
@@ -70,6 +69,9 @@
         const response = await fetch('/assets/data/posts.json');
         posts = await response.json();
 
+        // Ensure sorting (newest first)
+        posts.sort((a, b) => new Date(b.date) - new Date(a.date));
+
         let currentYear = null;
         posts.forEach(post => {
           if (post.year !== currentYear) {
@@ -81,7 +83,6 @@
 
         const totalHeight = allItems.reduce((acc, item) => acc + item.height, 0);
         document.getElementById('virtual-list-spacer').style.height = `${totalHeight}px`;
-        document.getElementById('virtual-list-viewport').style.position = 'relative';
 
         window.addEventListener('scroll', render);
         window.addEventListener('resize', render);
@@ -130,7 +131,7 @@
           div.innerHTML = `
                         <div class="archive-item">
                             <a href="${item.content.url}" class="archive-title">${item.content.title}</a>
-                            <span class="archive-date text-muted">${item.content.date}</span>
+                            <span class="archive-date text-muted font-monospace">${item.content.date}</span>
                         </div>
                     `;
         }

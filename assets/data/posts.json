@@ -1,44 +1,42 @@
 [
   {
-    "title": "Audio Engineering Insights",
+    "id": "2024-12-10-audioengineering",
+    "title": "그냥 음향공학 공부",
     "date": "2024-12-10",
-    "url": "/2024/12/10/audioengineering.html",
-    "year": "2024"
+    "fullDate": "2024-12-10 00:49:00 +0900",
+    "year": "2024",
+    "url": "/post.html?id=2024-12-10-audioengineering"
   },
   {
-    "title": "GCC in VS Code",
+    "id": "2024-05-26-gcc-in-vscode",
+    "title": "VSCode에서 GCC 이용하기",
     "date": "2024-05-26",
-    "url": "/2024/05/26/gcc-in-vscode.html",
-    "year": "2024"
+    "fullDate": "2024-05-26 00:00:00 +0900",
+    "year": "2024",
+    "url": "/post.html?id=2024-05-26-gcc-in-vscode"
   },
   {
-    "title": "Faster R-CNN",
+    "id": "2024-05-16-FasterRCNN",
+    "title": "그냥 인공지능 공부",
     "date": "2024-05-16",
-    "url": "/2024/05/16/FasterRCNN.html",
-    "year": "2024"
+    "fullDate": "2024-05-16 00:00:00 +0900",
+    "year": "2024",
+    "url": "/post.html?id=2024-05-16-FasterRCNN"
   },
   {
-    "title": "Fix Windows Updates",
+    "id": "2023-04-09-fix-windows-updates",
+    "title": "0xc190011f, 0x80888002, 0xC1900108",
     "date": "2023-04-09",
-    "url": "/2023/04/09/fix-windows-updates.html",
-    "year": "2023"
+    "fullDate": "2023-04-09 22:00:00 +0900",
+    "year": "2023",
+    "url": "/post.html?id=2023-04-09-fix-windows-updates"
   },
   {
-    "title": "211003 Picture",
+    "id": "2022-10-01-1-211003pic",
+    "title": "2021 Oct 3",
     "date": "2022-10-01",
-    "url": "/2022/10/01/1-211003pic.html",
-    "year": "2022"
-  },
-  {
-    "title": "Post Content Styles",
-    "date": "2021-07-16",
-    "url": "/2021/07/16/this-post-demonstrates-post-content-styles.html",
-    "year": "2021"
-  },
-  {
-    "title": "Hello World",
-    "date": "2021-07-13",
-    "url": "/2021/07/13/Hello-World.html",
-    "year": "2021"
+    "fullDate": "2022-10-01",
+    "year": "2022",
+    "url": "/post.html?id=2022-10-01-1-211003pic"
   }
 ]
