@@ -1,0 +1,92 @@
+:root {
+  --bg-color: #ffffff;
+  --text-color: #212529;
+  --heading-color: #111111;
+  --archive-title-color: #212529;
+}
+
+[data-bs-theme="dark"] {
+  --bg-color: #0f0f0f;
+  --text-color: #d1d1d1;
+  --heading-color: #e1e1e1;
+  --archive-title-color: #e1e1e1;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: "Pretendard Variable", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  line-height: 1.6;
+  font-weight: 500;
+  overflow-x: hidden;
+}
+
+.container {
+  max-width: 42rem;
+}
+
+.navbar-brand {
+  font-weight: 800;
+}
+
+.archive-year {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: var(--heading-color);
+}
+
+.archive-item {
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.archive-title {
+  color: var(--archive-title-color);
+  text-decoration: none;
+  font-size: 1.25rem;
+}
+
+.archive-title:hover {
+  text-decoration: underline;
+}
+
+.archive-date {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.875rem;
+}
+
+#virtual-list-container {
+  position: relative;
+  width: 100%;
+}
+
+.virtual-item {
+  width: 100%;
+}
+
+footer {
+  text-align: center;
+}
+
+.footer-icon-links {
+  color: var(--text-color);
+  text-decoration: none;
+  margin: 0 0.25rem;
+}
+
+.footer-icon-links:hover {
+  color: var(--heading-color);
+}
+
+.chip {
+  border-radius: 100px;
+  border: solid 2px #939393;
+  padding: 0px 10px;
+  display: inline-block;
+  font-size: 0.875rem;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}

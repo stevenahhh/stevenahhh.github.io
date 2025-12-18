@@ -1,15 +1,152 @@
----
-layout: default
----
+<!DOCTYPE html>
+<html lang="ko" data-bs-theme="auto">
 
-<div class="archive">
-  {% for post in site.posts %} {% assign currDate = post.date | date: "%Y" %} {%
-  if currDate != date %}
-  <h1 class="archive-year">{{ currDate }}</h1>
-  {% assign date = currDate %} {% endif %}
-  <div class="archive-item">
-    <a href="{{ post.url | relative_url }}" class="archive-title fs-4">{{ post.title }}</a>
-    <span class="post-date archive-date font-monospace fs-6">{{ post.date | date: "%Y %b %d" }}</span>
-  </div>
-  {% endfor %}
-</div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ahh - insanities</title>
+  <meta name="description" content="insanities">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script>
+    (() => {
+      const getStoredTheme = () => localStorage.getItem('theme')
+      const getPreferredTheme = () => {
+        const storedTheme = getStoredTheme()
+        if (storedTheme) return storedTheme
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+      document.documentElement.setAttribute('data-bs-theme', getPreferredTheme())
+    })()
+  </script>
+</head>
+
+<body class="d-flex flex-column h-100">
+  <nav class="navbar navbar-expand-lg">
+    <div class="container">
+      <a class="navbar-brand p-0" href="/">ahh</a>
+      <div class="navbar-nav ms-auto flex-row">
+        <a class="nav-link me-3" href="/about/">About</a>
+        <a class="nav-link me-3" href="/portfolio/">Portfolio</a>
+        <button class="btn btn-link nav-link p-0" id="theme-toggle" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half"
+            viewBox="0 0 16 16">
+            <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container flex-shrink-0">
+    <div id="virtual-list-viewport" style="min-height: 80vh;">
+      <div id="virtual-list-spacer"></div>
+      <div id="virtual-list-content" style="position: absolute; top: 0; left: 0; width: 100%;"></div>
+    </div>
+  </main>
+
+  <footer class="footer mt-auto py-3">
+    <div class="container text-center">
+      <div class="footer-links mb-2">
+        <a href="https://github.com/stevenahhh" class="footer-icon-links">GitHub</a>
+        <a href="mailto:steve@example.com" class="footer-icon-links">Email</a>
+      </div>
+      <span class="text-muted small">© 2024 ahh</span>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const ITEM_HEIGHT = 45;
+    const HEADER_HEIGHT = 60;
+
+    let allItems = [];
+    let posts = [];
+
+    async function init() {
+      try {
+        const response = await fetch('/assets/data/posts.json');
+        posts = await response.json();
+
+        let currentYear = null;
+        posts.forEach(post => {
+          if (post.year !== currentYear) {
+            currentYear = post.year;
+            allItems.push({ type: 'header', content: currentYear, height: HEADER_HEIGHT });
+          }
+          allItems.push({ type: 'post', content: post, height: ITEM_HEIGHT });
+        });
+
+        const totalHeight = allItems.reduce((acc, item) => acc + item.height, 0);
+        document.getElementById('virtual-list-spacer').style.height = `${totalHeight}px`;
+        document.getElementById('virtual-list-viewport').style.position = 'relative';
+
+        window.addEventListener('scroll', render);
+        window.addEventListener('resize', render);
+        render();
+      } catch (e) {
+        console.error("Failed to load posts", e);
+      }
+    }
+
+    function render() {
+      const scrollTop = window.scrollY;
+      const viewportHeight = window.innerHeight;
+      const viewportOffset = document.getElementById('virtual-list-viewport').offsetTop;
+      const relativeScrollTop = Math.max(0, scrollTop - viewportOffset);
+
+      const content = document.getElementById('virtual-list-content');
+      content.innerHTML = '';
+
+      let currentOffset = 0;
+      let visibleItems = [];
+      let firstVisibleOffset = 0;
+
+      for (let i = 0; i < allItems.length; i++) {
+        const item = allItems[i];
+        const itemBottom = currentOffset + item.height;
+
+        if (itemBottom > relativeScrollTop && currentOffset < relativeScrollTop + viewportHeight) {
+          if (visibleItems.length === 0) firstVisibleOffset = currentOffset;
+          visibleItems.push(item);
+        }
+
+        currentOffset += item.height;
+        if (currentOffset > relativeScrollTop + viewportHeight) break;
+      }
+
+      content.style.transform = `translateY(${firstVisibleOffset}px)`;
+
+      visibleItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'virtual-item';
+        div.style.height = `${item.height}px`;
+
+        if (item.type === 'header') {
+          div.innerHTML = `<h1 class="archive-year">${item.content}</h1>`;
+        } else {
+          div.innerHTML = `
+                        <div class="archive-item">
+                            <a href="${item.content.url}" class="archive-title">${item.content.title}</a>
+                            <span class="archive-date text-muted">${item.content.date}</span>
+                        </div>
+                    `;
+        }
+        content.appendChild(div);
+      });
+    }
+
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-bs-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    });
+
+    init();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko" data-bs-theme="auto">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About - ahh</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script>
+    (() => {
+      const getPreferredTheme = () => {
+        const storedTheme = localStorage.getItem('theme')
+        if (storedTheme) return storedTheme
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+      document.documentElement.setAttribute('data-bs-theme', getPreferredTheme())
+    })()
+  </script>
+</head>
+
+<body class="d-flex flex-column h-100">
+  <nav class="navbar navbar-expand-lg">
+    <div class="container">
+      <a class="navbar-brand p-0" href="/">ahh</a>
+      <div class="navbar-nav ms-auto flex-row">
+        <a class="nav-link me-3" href="/about/">About</a>
+        <a class="nav-link me-3" href="/portfolio/">Portfolio</a>
+        <button class="btn btn-link nav-link p-0" id="theme-toggle" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half"
+            viewBox="0 0 16 16">
+            <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container mt-5 flex-shrink-0">
+    <h1 class="fw-bold mb-4">About</h1>
+
+    <section class="mb-5">
+      <h2 class="h4 fw-bold">me 😉</h2>
+      <p>enjoying programming web</p>
+    </section>
+
+    <section class="mb-5">
+      <h2 class="h4 fw-bold">what i can do ✊</h2>
+      <div class="mt-3">
+        <span class="chip">HTML & CSS</span>
+        <span class="chip">JavaScript</span>
+        <span class="chip">Python <small class="text-muted">don't ask me</small></span>
+      </div>
+    </section>
+
+    <section class="mb-5">
+      <h2 class="h4 fw-bold">contact 📥</h2>
+      <p><a href="mailto:crag-dune0r@icloud.com" class="text-decoration-none">crag-dune0r@icloud.com</a></p>
+    </section>
+  </main>
+
+  <footer class="footer mt-auto py-3">
+    <div class="container text-center">
+      <span class="text-muted small">© 2024 ahh</span>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-bs-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    });
+  </script>
+</body>
+
+</html>
