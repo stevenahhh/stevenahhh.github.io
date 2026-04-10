@@ -45,28 +45,164 @@
       <h2 class="h4 fw-bold mb-3">Sample Portfolio</h2>
       <p class="text-muted mb-4">These are screencaps from Chungking Express</p>
 
-      <div class="row g-4">
-        <div class="col-12">
-          <img src="/assets/images/sample_portfolio/1.jpg" class="img-fluid rounded shadow-sm"
-            alt="Chungking Express 1">
-        </div>
-        <div class="col-12">
-          <img src="/assets/images/sample_portfolio/2.jpg" class="img-fluid rounded shadow-sm"
-            alt="Chungking Express 2">
-        </div>
-        <div class="col-12">
-          <img src="/assets/images/sample_portfolio/3.jpg" class="img-fluid rounded shadow-sm"
-            alt="Chungking Express 3">
-        </div>
-        <div class="col-12">
-          <img src="/assets/images/sample_portfolio/4.jpg" class="img-fluid rounded shadow-sm"
-            alt="Chungking Express 4">
-        </div>
-        <div class="col-12">
-          <img src="/assets/images/sample_portfolio/5.jpg" class="img-fluid rounded shadow-sm"
-            alt="Chungking Express 5">
-        </div>
-      </div>
+      <div id="portfolio-masonry" style="position: relative;"></div>
+
+      <script type="module">
+        import { prepare, layout } from '/assets/js/pretext.js';
+
+        const GAP = 16;
+        const CARD_PADDING_X = 16;
+        const CARD_PADDING_TOP = 16;
+        const CARD_PADDING_BOTTOM = 16;
+        const CAPTION_MARGIN_TOP = 12;
+        const CAPTION_LINE_HEIGHT = 22.4;
+        const CAPTION_FONT = '500 14px "Pretendard Variable"';
+        const portfolioItems = [
+          {
+            src: '/assets/images/sample_portfolio/1.jpg',
+            alt: 'Chungking Express 1'
+          },
+          {
+            src: '/assets/images/sample_portfolio/2.jpg',
+            alt: 'Chungking Express 2'
+          },
+          {
+            src: '/assets/images/sample_portfolio/3.jpg',
+            alt: 'Chungking Express 3'
+          },
+          {
+            src: '/assets/images/sample_portfolio/4.jpg',
+            alt: 'Chungking Express 4'
+          },
+          {
+            src: '/assets/images/sample_portfolio/5.jpg',
+            alt: 'Chungking Express 5'
+          }
+        ];
+
+        const masonryContainer = document.getElementById('portfolio-masonry');
+
+        if (masonryContainer instanceof HTMLDivElement) {
+          const cards = portfolioItems.map((item) => {
+            const preparedCaption = prepare(item.alt, CAPTION_FONT);
+            const card = document.createElement('article');
+            card.className = 'rounded shadow-sm';
+            card.style.position = 'absolute';
+            card.style.opacity = '0';
+            card.style.transition = 'opacity 240ms ease';
+            card.style.backgroundColor = 'var(--bs-body-bg)';
+            card.style.overflow = 'hidden';
+
+            const image = document.createElement('img');
+            image.src = item.src;
+            image.alt = item.alt;
+            image.decoding = 'async';
+            image.style.display = 'block';
+            image.style.width = '100%';
+            image.style.height = 'auto';
+
+            const body = document.createElement('div');
+            body.style.padding = `${CARD_PADDING_TOP}px ${CARD_PADDING_X}px ${CARD_PADDING_BOTTOM}px`;
+
+            const caption = document.createElement('p');
+            caption.className = 'mb-0 text-muted';
+            caption.textContent = item.alt;
+            caption.style.fontSize = '0.875rem';
+            caption.style.lineHeight = `${CAPTION_LINE_HEIGHT}px`;
+            caption.style.marginTop = `${CAPTION_MARGIN_TOP}px`;
+
+            body.append(caption);
+            card.append(image, body);
+            masonryContainer.append(card);
+
+            return {
+              card,
+              image,
+              caption,
+              preparedCaption,
+              naturalWidth: 0,
+              naturalHeight: 0
+            };
+          });
+
+          const loadImageDimensions = (entry) => new Promise((resolve, reject) => {
+            const finalize = () => {
+              if (entry.image.naturalWidth > 0 && entry.image.naturalHeight > 0) {
+                entry.naturalWidth = entry.image.naturalWidth;
+                entry.naturalHeight = entry.image.naturalHeight;
+                resolve();
+              } else {
+                reject(new Error(`Failed to load image dimensions for ${entry.image.src}`));
+              }
+            };
+
+            if (entry.image.complete) {
+              finalize();
+              return;
+            }
+
+            entry.image.addEventListener('load', finalize, { once: true });
+            entry.image.addEventListener('error', () => {
+              reject(new Error(`Failed to load image ${entry.image.src}`));
+            }, { once: true });
+          });
+
+          const renderMasonry = () => {
+            const containerWidth = masonryContainer.clientWidth;
+
+            if (containerWidth === 0) {
+              return;
+            }
+
+            const columnCount = window.innerWidth >= 576 ? 2 : 1;
+            const totalGap = GAP * (columnCount - 1);
+            const columnWidth = (containerWidth - totalGap) / columnCount;
+            const captionWidth = columnWidth - CARD_PADDING_X * 2;
+            const columnHeights = new Array(columnCount).fill(0);
+
+            cards.forEach((entry) => {
+              const imageHeight = columnWidth * (entry.naturalHeight / entry.naturalWidth);
+              const captionMetrics = layout(entry.preparedCaption, captionWidth, CAPTION_LINE_HEIGHT);
+              const cardHeight = imageHeight + CARD_PADDING_TOP + CAPTION_MARGIN_TOP + captionMetrics.height + CARD_PADDING_BOTTOM;
+              const shortestColumnHeight = Math.min(...columnHeights);
+              const columnIndex = columnHeights.indexOf(shortestColumnHeight);
+              const left = columnIndex * (columnWidth + GAP);
+              const top = columnHeights[columnIndex];
+
+              entry.card.style.width = `${columnWidth}px`;
+              entry.card.style.left = `${left}px`;
+              entry.card.style.top = `${top}px`;
+              entry.caption.style.width = `${captionWidth}px`;
+              entry.card.style.opacity = '1';
+
+              columnHeights[columnIndex] += cardHeight + GAP;
+            });
+
+            masonryContainer.style.height = `${Math.max(...columnHeights.map((height) => height - GAP), 0)}px`;
+
+          };
+
+          const debounce = (callback, delay) => {
+            let timeoutId = 0;
+
+            return () => {
+              window.clearTimeout(timeoutId);
+              timeoutId = window.setTimeout(() => {
+                callback();
+              }, delay);
+            };
+          };
+
+          Promise.all([document.fonts.ready, Promise.all(cards.map(loadImageDimensions))])
+            .then(() => {
+              renderMasonry();
+              window.addEventListener('resize', debounce(renderMasonry, 100));
+            })
+            .catch((error) => {
+              console.error(error);
+            });
+        }
+      </script>
     </section>
   </main>
 

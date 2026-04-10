@@ -41,23 +41,80 @@
   <main class="container mt-5 flex-shrink-0">
     <h1 class="fw-bold mb-4">About</h1>
 
-    <section class="mb-5">
-      <h2 class="h4 fw-bold">me 😉</h2>
-      <p>enjoying programming web</p>
-    </section>
+    <style>
+      .about-accordion-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        cursor: pointer;
+        user-select: none;
+      }
 
-    <section class="mb-5">
-      <h2 class="h4 fw-bold">what i can do ✊</h2>
-      <div class="mt-3">
-        <span class="chip">HTML & CSS</span>
-        <span class="chip">JavaScript</span>
-        <span class="chip">Python <small class="text-muted">don't ask me</small></span>
+      .about-accordion-title {
+        margin: 0;
+      }
+
+      .about-accordion-indicator {
+        flex-shrink: 0;
+        font-size: 0.95rem;
+        line-height: 1;
+        transition: transform 0.3s ease;
+      }
+
+      .about-accordion-section[data-open="true"] .about-accordion-indicator {
+        transform: rotate(90deg);
+      }
+
+      .about-accordion-panel {
+        overflow: hidden;
+        height: 0;
+        transition: height 0.3s ease;
+      }
+
+      .about-accordion-inner {
+        padding-bottom: 1rem;
+      }
+
+      .about-accordion-inner> :last-child {
+        margin-bottom: 0;
+      }
+    </style>
+
+    <section class="mb-5 about-accordion-section" data-accordion-section data-section-key="me" data-open="true">
+      <h2 class="h4 fw-bold about-accordion-toggle" data-accordion-toggle aria-expanded="true" role="button" tabindex="0">
+        <span class="about-accordion-title">me 😉</span>
+        <span class="about-accordion-indicator" aria-hidden="true">▸</span>
+      </h2>
+      <div class="about-accordion-panel" data-accordion-panel>
+        <div class="about-accordion-inner">
+          <p>enjoying programming web</p>
+        </div>
       </div>
     </section>
 
-    <section class="mb-5">
-      <h2 class="h4 fw-bold">contact 📥</h2>
-      <p><a href="mailto:crag-dune0r@icloud.com" class="text-decoration-none">crag-dune0r@icloud.com</a></p>
+    <section class="mb-5 about-accordion-section" data-accordion-section data-section-key="skills" data-open="false">
+      <h2 class="h4 fw-bold about-accordion-toggle" data-accordion-toggle aria-expanded="false" role="button" tabindex="0">
+        <span class="about-accordion-title">what i can do ✊</span>
+        <span class="about-accordion-indicator" aria-hidden="true">▸</span>
+      </h2>
+      <div class="about-accordion-panel" data-accordion-panel>
+        <div class="about-accordion-inner">
+          <div class="mt-3"><span class="chip">HTML &amp; CSS</span><span class="chip">JavaScript</span><span class="chip">Python <small class="text-muted">don't ask me</small></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-5 about-accordion-section" data-accordion-section data-section-key="contact" data-open="false">
+      <h2 class="h4 fw-bold about-accordion-toggle" data-accordion-toggle aria-expanded="false" role="button" tabindex="0">
+        <span class="about-accordion-title">contact 📥</span>
+        <span class="about-accordion-indicator" aria-hidden="true">▸</span>
+      </h2>
+      <div class="about-accordion-panel" data-accordion-panel>
+        <div class="about-accordion-inner">
+          <p><a href="mailto:crag-dune0r@icloud.com" class="text-decoration-none">crag-dune0r@icloud.com</a></p>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -66,6 +123,99 @@
       <span class="text-muted small">© 2024 ahh</span>
     </div>
   </footer>
+
+  <script type="module">
+    import { prepare, layout } from '/assets/js/pretext.js';
+
+    const TEXT_FONT = '500 16px "Pretendard Variable"';
+    const TEXT_LINE_HEIGHT = 25.6;
+    const SECTION_PADDING_BOTTOM = 16;
+    const CHIP_ROW_HEIGHT = 32;
+    const CHIP_ROW_GAP = 8;
+    const CHIP_TOP_MARGIN = 16;
+    const CHIP_LAYOUT_PADDING = 8;
+    const CONTAINER_MAX_WIDTH = 672;
+    const CONTAINER_HORIZONTAL_PADDING = 24;
+
+    const sections = Array.from(document.querySelectorAll('[data-accordion-section]')).map((section) => ({
+      element: section,
+      toggle: section.querySelector('[data-accordion-toggle]'),
+      panel: section.querySelector('[data-accordion-panel]'),
+      key: section.dataset.sectionKey || '',
+      isOpen: section.dataset.open === 'true',
+    }));
+
+    const preparedContent = {
+      me: prepare('enjoying programming web', TEXT_FONT),
+      skills: prepare('HTML & CSS JavaScript Python don\'t ask me', TEXT_FONT),
+      contact: prepare('crag-dune0r@icloud.com', TEXT_FONT),
+    };
+
+    function getContentWidth() {
+      return Math.max(0, Math.min(CONTAINER_MAX_WIDTH, window.innerWidth - CONTAINER_HORIZONTAL_PADDING));
+    }
+
+    function getChipHeight(width) {
+      const chipLayout = layout(preparedContent.skills, Math.max(1, width), TEXT_LINE_HEIGHT);
+      const estimatedRows = Math.max(1, chipLayout.lineCount || 1);
+      return CHIP_TOP_MARGIN + (estimatedRows * CHIP_ROW_HEIGHT) + ((estimatedRows - 1) * CHIP_ROW_GAP) + CHIP_LAYOUT_PADDING;
+    }
+
+    function getExpandedHeight(section) {
+      const width = getContentWidth();
+      if (!width) {
+        return 0;
+      }
+
+      if (section.key === 'skills') {
+        return getChipHeight(width) + SECTION_PADDING_BOTTOM;
+      }
+
+      const content = section.key === 'contact' ? preparedContent.contact : preparedContent.me;
+      return layout(content, width, TEXT_LINE_HEIGHT).height + SECTION_PADDING_BOTTOM;
+    }
+
+    function syncSection(section) {
+      section.element.dataset.open = String(section.isOpen);
+      section.toggle.setAttribute('aria-expanded', String(section.isOpen));
+      section.panel.style.height = section.isOpen ? `${getExpandedHeight(section)}px` : '0px';
+    }
+
+    function recalculateHeights() {
+      sections.forEach((section) => {
+        if (section.isOpen) {
+          section.panel.style.height = `${getExpandedHeight(section)}px`;
+        }
+      });
+    }
+
+    function toggleSection(section) {
+      section.isOpen = !section.isOpen;
+      syncSection(section);
+    }
+
+    sections.forEach((section) => {
+      section.toggle.addEventListener('click', () => {
+        toggleSection(section);
+      });
+
+      section.toggle.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          toggleSection(section);
+        }
+      });
+    });
+
+    await document.fonts.ready;
+    sections.forEach((section) => {
+      syncSection(section);
+    });
+
+    window.addEventListener('resize', () => {
+      recalculateHeights();
+    });
+  </script>
 
   <script>
     document.getElementById('theme-toggle').addEventListener('click', () => {

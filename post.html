@@ -76,6 +76,189 @@
     </div>
   </footer>
 
+  <script type="module">
+    import { prepareWithSegments, layoutWithLines } from '/assets/js/pretext.js';
+
+    const BODY_FONT = '500 16px "Pretendard Variable"';
+    const H1_FONT = '700 2rem "Pretendard Variable"';
+    const H2_FONT = '600 1.5rem "Pretendard Variable"';
+    const H3_FONT = '600 1.25rem "Pretendard Variable"';
+    const DEFAULT_LINE_HEIGHT = 25.6;
+    const TARGET_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, blockquote';
+    const EXCLUDED_SELECTOR = 'pre, code, img';
+
+    let preparedTextNodes = [];
+    let resizeFrame = null;
+
+    function getFontForElement(element) {
+      const tagName = element.tagName.toUpperCase();
+
+      if (tagName === 'H1') return H1_FONT;
+      if (tagName === 'H2') return H2_FONT;
+      if (tagName === 'H3') return H3_FONT;
+
+      return BODY_FONT;
+    }
+
+    function getLineHeightForElement(element) {
+      const computedLineHeight = Number.parseFloat(window.getComputedStyle(element).lineHeight);
+      return Number.isFinite(computedLineHeight) ? computedLineHeight : DEFAULT_LINE_HEIGHT;
+    }
+
+    function getContainerWidth(element) {
+      return Math.max(0, element.clientWidth || element.getBoundingClientRect().width || 0);
+    }
+
+    function isInsideExcludedElement(node, root) {
+      let current = node.parentElement;
+
+      while (current && current !== root) {
+        if (current.matches(EXCLUDED_SELECTOR)) {
+          return true;
+        }
+
+        current = current.parentElement;
+      }
+
+      return false;
+    }
+
+    function isInsideNestedTarget(node, root) {
+      let current = node.parentElement;
+
+      while (current && current !== root) {
+        if (current.matches(TARGET_SELECTOR)) {
+          return true;
+        }
+
+        current = current.parentElement;
+      }
+
+      return false;
+    }
+
+    function createLineSpan(line) {
+      const lineSpan = document.createElement('span');
+      lineSpan.style.display = 'inline-block';
+      lineSpan.style.whiteSpace = 'pre';
+      lineSpan.style.width = `${line.width}px`;
+      lineSpan.textContent = line.text;
+      return lineSpan;
+    }
+
+    function renderPreparedNode(entry) {
+      const containerWidth = getContainerWidth(entry.block);
+      entry.wrapper.replaceChildren();
+
+      if (!containerWidth) {
+        entry.wrapper.textContent = entry.text;
+        return;
+      }
+
+      const layout = layoutWithLines(entry.prepared, containerWidth, entry.lineHeight);
+
+      if (!layout.lines.length) {
+        entry.wrapper.textContent = entry.text;
+        return;
+      }
+
+      layout.lines.forEach((line, index) => {
+        entry.wrapper.appendChild(createLineSpan(line));
+
+        if (index < layout.lines.length - 1) {
+          entry.wrapper.appendChild(document.createElement('br'));
+        }
+      });
+    }
+
+    function collectTextNodes(block) {
+      const textNodes = [];
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          if (!node.textContent?.trim()) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          if (isInsideExcludedElement(node, block)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          if (isInsideNestedTarget(node, block)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+
+      let currentNode = walker.nextNode();
+      while (currentNode) {
+        textNodes.push(currentNode);
+        currentNode = walker.nextNode();
+      }
+
+      return textNodes;
+    }
+
+    function buildPreparedNodeEntry(textNode, block) {
+      const text = textNode.textContent;
+      const wrapper = document.createElement('span');
+      const font = getFontForElement(block);
+      const lineHeight = getLineHeightForElement(block);
+
+      wrapper.setAttribute('data-pretext-lines', '');
+      textNode.parentNode.replaceChild(wrapper, textNode);
+
+      return {
+        block,
+        wrapper,
+        text,
+        prepared: prepareWithSegments(text, font),
+        lineHeight,
+      };
+    }
+
+    function relayoutPreparedNodes() {
+      preparedTextNodes.forEach((entry) => {
+        renderPreparedNode(entry);
+      });
+    }
+
+    function handleResize() {
+      if (resizeFrame !== null) {
+        window.cancelAnimationFrame(resizeFrame);
+      }
+
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = null;
+        relayoutPreparedNodes();
+      });
+    }
+
+    window.__applyPostPretextEnhancement = async function applyPostPretextEnhancement(root) {
+      if (!root) {
+        preparedTextNodes = [];
+        return;
+      }
+
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+
+      preparedTextNodes = [];
+
+      root.querySelectorAll(TARGET_SELECTOR).forEach((block) => {
+        collectTextNodes(block).forEach((textNode) => {
+          preparedTextNodes.push(buildPreparedNodeEntry(textNode, block));
+        });
+      });
+
+      relayoutPreparedNodes();
+    };
+
+    window.addEventListener('resize', handleResize);
+  </script>
+
   <script>
     async function loadPost() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -110,7 +293,11 @@
         document.getElementById('post-title').textContent = title;
         document.getElementById('post-date').textContent = date;
         document.getElementById('post-content').innerHTML = marked.parse(text);
-      } catch (e) {
+
+        if (typeof window.__applyPostPretextEnhancement === 'function') {
+          await window.__applyPostPretextEnhancement(document.getElementById('post-content'));
+        }
+      } catch {
         document.getElementById('post-title').textContent = 'Error';
         document.getElementById('post-content').innerHTML = '<p>포스트를 불러오는데 실패했습니다.</p>';
       }
@@ -123,7 +310,7 @@
       localStorage.setItem('theme', newTheme);
     });
 
-    loadPost();
+    window.addEventListener('DOMContentLoaded', loadPost);
   </script>
 </body>
 
