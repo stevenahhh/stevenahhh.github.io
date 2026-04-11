@@ -214,6 +214,17 @@
       lastWidth: 0,
       resizeTimer: null,
       pretext: null,
+      imageRelayoutCount: 0,
+    }
+
+    const MAX_IMAGE_RELAYOUTS = 5
+
+    function imageTriggeredRelayout() {
+      if (renderState.imageRelayoutCount >= MAX_IMAGE_RELAYOUTS) {
+        return
+      }
+      renderState.imageRelayoutCount += 1
+      renderPretextLayout(true)
     }
 
     let pretextPromise = null
@@ -404,7 +415,7 @@
       return segments
     }
 
-    function createRichBlock(tokens, spec, pretext) {
+    function createRichBlock(tokens, spec, pretext, isHeading = false) {
       const rawSegments = collectInlineSegments(tokens, spec)
       const segments = rawSegments.map(pieces => {
         if (pieces.length === 0) {
@@ -431,6 +442,7 @@
         type: 'rich',
         lineHeight: spec.lineHeight,
         segments,
+        justify: !isHeading,
       }
     }
 
@@ -539,7 +551,7 @@
         if (token.type === 'heading') {
           const headingSpec = getHeadingSpec(token.depth || 1)
           if (canRenderInlineWithPretext(token.tokens)) {
-            blocks.push(createRichBlock(token.tokens || [], headingSpec, pretext))
+            blocks.push(createRichBlock(token.tokens || [], headingSpec, pretext, true))
           } else {
             blocks.push(createHtmlBlock(parser([token])))
           }
@@ -593,38 +605,6 @@
       return blocks
     }
 
-    function appendFragmentToLine(lineEl, piece, fragment) {
-      const fragmentEl = piece.href ? document.createElement('a') : document.createElement('span')
-      fragmentEl.textContent = fragment.text
-
-      if (piece.href) {
-        fragmentEl.href = piece.href
-      }
-
-      fragmentEl.style.display = piece.isCode ? 'inline-flex' : 'inline-block'
-      fragmentEl.style.alignItems = piece.isCode ? 'center' : ''
-      fragmentEl.style.justifyContent = piece.isCode ? 'center' : ''
-      fragmentEl.style.boxSizing = piece.isCode ? 'border-box' : ''
-      fragmentEl.style.font = piece.font
-      fragmentEl.style.color = 'inherit'
-      fragmentEl.style.textDecoration = piece.href ? 'underline' : 'inherit'
-      fragmentEl.style.verticalAlign = 'top'
-
-      if (fragment.gapBefore > 0) {
-        fragmentEl.style.marginLeft = `${fragment.gapBefore}px`
-      }
-
-      if (piece.isCode) {
-        fragmentEl.style.width = `${fragment.occupiedWidth}px`
-      }
-
-      if (piece.className) {
-        fragmentEl.className = piece.className
-      }
-
-      lineEl.appendChild(fragmentEl)
-    }
-
     function renderRichBlock(block, host, top, left, width, pretext) {
       const blockEl = document.createElement('div')
       blockEl.className = 'pt-block'
@@ -632,6 +612,7 @@
       blockEl.style.left = `${left}px`
       blockEl.style.width = `${width}px`
 
+      const maxWidth = Math.max(1, width)
       let lineIndex = 0
 
       for (const segment of block.segments) {
@@ -640,13 +621,15 @@
           continue
         }
 
-        const stats = pretext.measureRichInlineStats(segment.prepared, Math.max(1, width))
+        const stats = pretext.measureRichInlineStats(segment.prepared, maxWidth)
         if (stats.lineCount === 0) {
           lineIndex += 1
           continue
         }
 
-        pretext.walkRichInlineLineRanges(segment.prepared, Math.max(1, width), lineRange => {
+        let segmentLineIndex = 0
+
+        pretext.walkRichInlineLineRanges(segment.prepared, maxWidth, lineRange => {
           const line = pretext.materializeRichInlineLineRange(segment.prepared, lineRange)
           const lineEl = document.createElement('div')
           lineEl.className = 'pt-line'
@@ -654,12 +637,60 @@
           lineEl.style.height = `${block.lineHeight}px`
           lineEl.style.lineHeight = `${block.lineHeight}px`
 
-          for (const fragment of line.fragments) {
-            appendFragmentToLine(lineEl, segment.pieces[fragment.itemIndex], fragment)
+          // Knuth-Plass justification:
+          // Distribute extra horizontal space across word gaps on non-last lines
+          const isLastLine = segmentLineIndex === stats.lineCount - 1
+          const shouldJustify = block.justify && !isLastLine && line.fragments.length > 1
+          let extraPerGap = 0
+
+          if (shouldJustify) {
+            const lineWidth = line.fragments.reduce((sum, f) => sum + f.occupiedWidth + f.gapBefore, 0)
+            const extraSpace = maxWidth - lineWidth
+            if (extraSpace > 0 && extraSpace < maxWidth * 0.4) {
+              extraPerGap = extraSpace / (line.fragments.length - 1)
+            }
+          }
+
+          for (let fi = 0; fi < line.fragments.length; fi++) {
+            const fragment = line.fragments[fi]
+            const piece = segment.pieces[fragment.itemIndex]
+            const fragmentEl = piece.href ? document.createElement('a') : document.createElement('span')
+            fragmentEl.textContent = fragment.text
+
+            if (piece.href) {
+              fragmentEl.href = piece.href
+            }
+
+            fragmentEl.style.display = piece.isCode ? 'inline-flex' : 'inline-block'
+            fragmentEl.style.alignItems = piece.isCode ? 'center' : ''
+            fragmentEl.style.justifyContent = piece.isCode ? 'center' : ''
+            fragmentEl.style.boxSizing = piece.isCode ? 'border-box' : ''
+            fragmentEl.style.font = piece.font
+            fragmentEl.style.color = 'inherit'
+            fragmentEl.style.textDecoration = piece.href ? 'underline' : 'inherit'
+            fragmentEl.style.verticalAlign = 'top'
+
+            const gap = fi > 0 && shouldJustify
+              ? fragment.gapBefore + extraPerGap
+              : fragment.gapBefore
+            if (gap > 0) {
+              fragmentEl.style.marginLeft = `${gap}px`
+            }
+
+            if (piece.isCode) {
+              fragmentEl.style.width = `${fragment.occupiedWidth}px`
+            }
+
+            if (piece.className) {
+              fragmentEl.className = piece.className
+            }
+
+            lineEl.appendChild(fragmentEl)
           }
 
           blockEl.appendChild(lineEl)
           lineIndex += 1
+          segmentLineIndex += 1
         })
       }
 
@@ -725,8 +756,8 @@
       const imgs = blockEl.querySelectorAll('img')
       for (const img of imgs) {
         if (!img.complete) {
-          img.addEventListener('load', () => renderPretextLayout(true), { once: true })
-          img.addEventListener('error', () => renderPretextLayout(true), { once: true })
+          img.addEventListener('load', imageTriggeredRelayout, { once: true })
+          img.addEventListener('error', imageTriggeredRelayout, { once: true })
         }
       }
 
@@ -744,8 +775,8 @@
           imgEl.title = block.title
         }
 
-        imgEl.addEventListener('load', () => renderPretextLayout(true), { once: true })
-        imgEl.addEventListener('error', () => renderPretextLayout(true), { once: true })
+        imgEl.addEventListener('load', imageTriggeredRelayout, { once: true })
+        imgEl.addEventListener('error', imageTriggeredRelayout, { once: true })
 
         if (block.linkHref) {
           const linkEl = document.createElement('a')
@@ -813,13 +844,22 @@
       block.items.forEach((item, index) => {
         const markerEl = document.createElement('div')
         markerEl.className = 'pt-marker'
-        markerEl.textContent = item.markerText
         markerEl.style.left = '0'
         markerEl.style.top = `${currentTop}px`
         markerEl.style.width = `${markerColumnWidth}px`
-        markerEl.style.font = BODY_FONT
+        markerEl.style.height = `${BODY_LINE_HEIGHT}px`
         markerEl.style.lineHeight = `${BODY_LINE_HEIGHT}px`
         markerEl.style.textAlign = 'right'
+
+        // Use an inner inline-block span with vertical-align:top to match
+        // the content text alignment (which also uses inline-block + v-align:top).
+        const markerSpan = document.createElement('span')
+        markerSpan.textContent = item.markerText
+        markerSpan.style.display = 'inline-block'
+        markerSpan.style.verticalAlign = 'top'
+        markerSpan.style.font = BODY_FONT
+        markerEl.appendChild(markerSpan)
+
         blockEl.appendChild(markerEl)
 
         const itemContentEl = document.createElement('div')
@@ -904,6 +944,11 @@
       const nextWidth = Math.max(1, Math.round(postContentEl.getBoundingClientRect().width))
       if (!force && nextWidth === renderState.lastWidth) {
         return
+      }
+
+      // Width changed → real resize, reset image relayout budget
+      if (nextWidth !== renderState.lastWidth) {
+        renderState.imageRelayoutCount = 0
       }
 
       try {
