@@ -415,7 +415,7 @@
       return segments
     }
 
-    function createRichBlock(tokens, spec, pretext, isHeading = false) {
+    function createRichBlock(tokens, spec, pretext) {
       const rawSegments = collectInlineSegments(tokens, spec)
       const segments = rawSegments.map(pieces => {
         if (pieces.length === 0) {
@@ -442,7 +442,6 @@
         type: 'rich',
         lineHeight: spec.lineHeight,
         segments,
-        justify: !isHeading,
       }
     }
 
@@ -551,7 +550,7 @@
         if (token.type === 'heading') {
           const headingSpec = getHeadingSpec(token.depth || 1)
           if (canRenderInlineWithPretext(token.tokens)) {
-            blocks.push(createRichBlock(token.tokens || [], headingSpec, pretext, true))
+            blocks.push(createRichBlock(token.tokens || [], headingSpec, pretext))
           } else {
             blocks.push(createHtmlBlock(parser([token])))
           }
@@ -621,14 +620,6 @@
           continue
         }
 
-        const stats = pretext.measureRichInlineStats(segment.prepared, maxWidth)
-        if (stats.lineCount === 0) {
-          lineIndex += 1
-          continue
-        }
-
-        let segmentLineIndex = 0
-
         pretext.walkRichInlineLineRanges(segment.prepared, maxWidth, lineRange => {
           const line = pretext.materializeRichInlineLineRange(segment.prepared, lineRange)
           const lineEl = document.createElement('div')
@@ -636,20 +627,6 @@
           lineEl.style.top = `${lineIndex * block.lineHeight}px`
           lineEl.style.height = `${block.lineHeight}px`
           lineEl.style.lineHeight = `${block.lineHeight}px`
-
-          // Knuth-Plass justification:
-          // Distribute extra horizontal space across word gaps on non-last lines
-          const isLastLine = segmentLineIndex === stats.lineCount - 1
-          const shouldJustify = block.justify && !isLastLine && line.fragments.length > 1
-          let extraPerGap = 0
-
-          if (shouldJustify) {
-            const lineWidth = line.fragments.reduce((sum, f) => sum + f.occupiedWidth + f.gapBefore, 0)
-            const extraSpace = maxWidth - lineWidth
-            if (extraSpace > 0 && extraSpace < maxWidth * 0.4) {
-              extraPerGap = extraSpace / (line.fragments.length - 1)
-            }
-          }
 
           for (let fi = 0; fi < line.fragments.length; fi++) {
             const fragment = line.fragments[fi]
@@ -670,11 +647,8 @@
             fragmentEl.style.textDecoration = piece.href ? 'underline' : 'inherit'
             fragmentEl.style.verticalAlign = 'top'
 
-            const gap = fi > 0 && shouldJustify
-              ? fragment.gapBefore + extraPerGap
-              : fragment.gapBefore
-            if (gap > 0) {
-              fragmentEl.style.marginLeft = `${gap}px`
+            if (fragment.gapBefore > 0) {
+              fragmentEl.style.marginLeft = `${fragment.gapBefore}px`
             }
 
             if (piece.isCode) {
@@ -690,7 +664,6 @@
 
           blockEl.appendChild(lineEl)
           lineIndex += 1
-          segmentLineIndex += 1
         })
       }
 
