@@ -57,70 +57,140 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    const ITEM_HEIGHT = 45;
-    const HEADER_HEIGHT = 60;
+  <script type="module">
+    import { prepare, layout } from '/assets/js/pretext.js';
+
+    const TITLE_FONT = '500 20px "Pretendard Variable"';
+    const YEAR_FONT = '600 32px "Pretendard Variable"';
+    const TITLE_LINE_HEIGHT = 32;
+    const YEAR_LINE_HEIGHT = 38.4;
+    const DATE_LINE_HEIGHT = 22.4;
+    const DATE_WIDTH = 100;
+    const POST_MARGIN_BOTTOM = 8;
+    const YEAR_MARGIN_TOP = 32;
+    const YEAR_MARGIN_BOTTOM = 16;
+    const OVERSCAN = 300;
+
+    const viewport = document.getElementById('virtual-list-viewport');
+    const spacer = document.getElementById('virtual-list-spacer');
+    const content = document.getElementById('virtual-list-content');
+    const themeToggle = document.getElementById('theme-toggle');
 
     let allItems = [];
-    let posts = [];
+    let offsets = [];
+    let totalHeight = 0;
+    let currentLayoutWidth = 0;
 
-    async function init() {
-      try {
-        const response = await fetch('/assets/data/posts.json');
-        posts = await response.json();
+    function createItems(posts) {
+      const items = [];
+      let currentYear = null;
 
-        // Ensure sorting (newest first)
-        posts.sort((a, b) => new Date(b.date) - new Date(a.date));
+      posts.forEach((post) => {
+        if (post.year !== currentYear) {
+          currentYear = post.year;
+          items.push({
+            type: 'header',
+            content: currentYear,
+            prepared: prepare(String(currentYear), YEAR_FONT),
+            height: 0,
+          });
+        }
 
-        let currentYear = null;
-        posts.forEach(post => {
-          if (post.year !== currentYear) {
-            currentYear = post.year;
-            allItems.push({ type: 'header', content: currentYear, height: HEADER_HEIGHT });
-          }
-          allItems.push({ type: 'post', content: post, height: ITEM_HEIGHT });
+        items.push({
+          type: 'post',
+          content: post,
+          prepared: prepare(post.title, TITLE_FONT),
+          height: 0,
         });
+      });
 
-        const totalHeight = allItems.reduce((acc, item) => acc + item.height, 0);
-        document.getElementById('virtual-list-spacer').style.height = `${totalHeight}px`;
+      return items;
+    }
 
-        window.addEventListener('scroll', render);
-        window.addEventListener('resize', render);
-        render();
-      } catch (e) {
-        console.error("Failed to load posts", e);
+    function getContainerWidth() {
+      return Math.max(0, viewport.clientWidth || viewport.getBoundingClientRect().width || 0);
+    }
+
+    function updateOffsets() {
+      offsets = new Array(allItems.length);
+      let runningOffset = 0;
+
+      for (let i = 0; i < allItems.length; i += 1) {
+        offsets[i] = runningOffset;
+        runningOffset += allItems[i].height;
       }
+
+      totalHeight = runningOffset;
+      spacer.style.height = `${totalHeight}px`;
+    }
+
+    function recalculateLayout() {
+      const containerWidth = getContainerWidth();
+      if (!containerWidth) {
+        return;
+      }
+
+      currentLayoutWidth = containerWidth;
+      const titleWidth = Math.max(0, containerWidth - DATE_WIDTH);
+
+      allItems.forEach((item) => {
+        if (item.type === 'header') {
+          const headerLayout = layout(item.prepared, containerWidth, YEAR_LINE_HEIGHT);
+          item.height = headerLayout.height + YEAR_MARGIN_TOP + YEAR_MARGIN_BOTTOM;
+          return;
+        }
+
+        const titleLayout = layout(item.prepared, titleWidth, TITLE_LINE_HEIGHT);
+        item.height = Math.max(titleLayout.height, DATE_LINE_HEIGHT) + POST_MARGIN_BOTTOM;
+      });
+
+      updateOffsets();
+    }
+
+    function findStartIndex(targetOffset) {
+      let low = 0;
+      let high = allItems.length - 1;
+      let result = allItems.length;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const itemBottom = offsets[mid] + allItems[mid].height;
+
+        if (itemBottom > targetOffset) {
+          result = mid;
+          high = mid - 1;
+        } else {
+          low = mid + 1;
+        }
+      }
+
+      return result;
     }
 
     function render() {
-      const scrollTop = window.scrollY;
-      const viewportHeight = window.innerHeight;
-      const viewportOffset = document.getElementById('virtual-list-viewport').offsetTop;
-      const relativeScrollTop = Math.max(0, scrollTop - viewportOffset);
-
-      const content = document.getElementById('virtual-list-content');
-      content.innerHTML = '';
-
-      let currentOffset = 0;
-      let visibleItems = [];
-      let firstVisibleOffset = 0;
-
-      for (let i = 0; i < allItems.length; i++) {
-        const item = allItems[i];
-        const itemBottom = currentOffset + item.height;
-
-        if (itemBottom > relativeScrollTop && currentOffset < relativeScrollTop + viewportHeight) {
-          if (visibleItems.length === 0) firstVisibleOffset = currentOffset;
-          visibleItems.push(item);
-        }
-
-        currentOffset += item.height;
-        if (currentOffset > relativeScrollTop + viewportHeight) break;
+      if (!allItems.length || !currentLayoutWidth) {
+        return;
       }
 
+      const scrollTop = window.scrollY;
+      const viewportHeight = window.innerHeight;
+      const viewportOffset = viewport.offsetTop;
+      const relativeScrollTop = Math.max(0, scrollTop - viewportOffset);
+      const startOffset = Math.max(0, relativeScrollTop - OVERSCAN);
+      const endOffset = relativeScrollTop + viewportHeight + OVERSCAN;
+      const startIndex = findStartIndex(startOffset);
+
+      let endIndex = startIndex;
+      while (endIndex < allItems.length && offsets[endIndex] < endOffset) {
+        endIndex += 1;
+      }
+
+      const firstVisibleOffset = startIndex < offsets.length ? offsets[startIndex] : totalHeight;
+      content.innerHTML = '';
       content.style.transform = `translateY(${firstVisibleOffset}px)`;
 
-      visibleItems.forEach(item => {
+      for (let i = startIndex; i < endIndex; i += 1) {
+        const item = allItems[i];
         const div = document.createElement('div');
         div.className = 'virtual-item';
         div.style.height = `${item.height}px`;
@@ -135,11 +205,45 @@
                         </div>
                     `;
         }
+
         content.appendChild(div);
-      });
+      }
     }
 
-    document.getElementById('theme-toggle').addEventListener('click', () => {
+    function handleResize() {
+      const nextWidth = getContainerWidth();
+      if (!nextWidth || nextWidth === currentLayoutWidth) {
+        render();
+        return;
+      }
+
+      recalculateLayout();
+      render();
+    }
+
+    async function init() {
+      try {
+        const response = await fetch('/assets/data/posts.json');
+        const posts = await response.json();
+
+        if (document.fonts?.ready) {
+          await document.fonts.ready;
+        }
+
+        posts.sort((a, b) => new Date(b.date) - new Date(a.date));
+        allItems = createItems(posts);
+        recalculateLayout();
+
+        window.addEventListener('scroll', render, { passive: true });
+        window.addEventListener('resize', handleResize);
+
+        render();
+      } catch (e) {
+        console.error('Failed to load posts', e);
+      }
+    }
+
+    themeToggle.addEventListener('click', () => {
       const currentTheme = document.documentElement.getAttribute('data-bs-theme');
       const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-bs-theme', newTheme);
