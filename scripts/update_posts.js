@@ -21,23 +21,40 @@ function parseFrontmatter(content) {
   return data;
 }
 
+function collectMarkdownFiles(dir, relativePrefix) {
+  let results = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results = results.concat(collectMarkdownFiles(fullPath, relativePrefix ? `${relativePrefix}/${entry.name}` : entry.name));
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      results.push({
+        fileName: entry.name,
+        relativePath: relativePrefix ? `${relativePrefix}/${entry.name}` : entry.name
+      });
+    }
+  }
+  return results;
+}
+
 function updatePosts() {
   if (!fs.existsSync(postsDir)) {
     console.error('_posts directory not found');
     return;
   }
 
-  const files = fs.readdirSync(postsDir).filter(f => f.endsWith('.md'));
+  const files = collectMarkdownFiles(postsDir, '');
   const posts = [];
 
-  files.forEach(file => {
-    if (file.startsWith('!')) return;
+  files.forEach(({ fileName, relativePath }) => {
+    if (fileName.startsWith('!')) return;
 
-    const filePath = path.join(postsDir, file);
+    const filePath = path.join(postsDir, relativePath);
     const content = fs.readFileSync(filePath, 'utf8');
     const metadata = parseFrontmatter(content);
 
-    const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/);
+    const dateMatch = fileName.match(/^(\d{4}-\d{2}-\d{2})/);
     let dateStr = metadata.date || (dateMatch ? dateMatch[1] : '');
 
     // Clean date for sorting (YYYY-MM-DD)
@@ -45,12 +62,13 @@ function updatePosts() {
     const year = cleanDate ? cleanDate.substring(0, 4) : 'Unknown';
 
     posts.push({
-      id: file.replace('.md', ''),
-      title: metadata.title || file.replace('.md', ''),
+      id: fileName.replace('.md', ''),
+      title: metadata.title || fileName.replace('.md', ''),
       date: cleanDate,
       fullDate: dateStr,
       year: year,
-      url: `/post.html?id=${file.replace('.md', '')}`
+      path: relativePath,
+      url: `/post.html?id=${fileName.replace('.md', '')}`
     });
   });
 
