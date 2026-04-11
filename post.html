@@ -21,6 +21,11 @@
     })()
   </script>
   <style>
+    .post-content {
+      position: relative;
+      min-height: 1px;
+    }
+
     .post-content img {
       max-width: 100%;
       height: auto;
@@ -40,6 +45,100 @@
       padding-left: 1rem;
       color: var(--bs-secondary-color);
     }
+
+    .post-content code {
+      background: var(--bs-tertiary-bg);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.875em;
+      font-weight: 600;
+    }
+
+    .post-content pre code {
+      background: none;
+      padding: 0;
+      font-size: inherit;
+      font-weight: inherit;
+    }
+
+    .pt-block {
+      position: absolute;
+    }
+
+    .pt-line {
+      position: absolute;
+      left: 0;
+      white-space: nowrap;
+    }
+
+    .pt-code-box {
+      position: absolute;
+      background: var(--bs-tertiary-bg);
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+
+    .pt-code-line {
+      position: absolute;
+      white-space: pre;
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+      font-size: 14px;
+    }
+
+    .pt-rule {
+      position: absolute;
+      height: 1px;
+      background: var(--bs-border-color);
+    }
+
+    .pt-marker {
+      position: absolute;
+    }
+
+    .pt-quote-rail {
+      position: absolute;
+      width: 3px;
+      top: 0;
+      bottom: 0;
+      background: var(--bs-primary);
+      border-radius: 2px;
+    }
+
+    .pt-link {
+      color: var(--bs-link-color);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .pt-strong {
+      font-weight: 700;
+    }
+
+    .pt-em {
+      font-style: italic;
+    }
+
+    .pt-del {
+      text-decoration: line-through;
+    }
+
+    .pt-img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+      display: block;
+    }
+
+    .code-span {
+      background: var(--bs-tertiary-bg);
+      border-radius: 4px;
+      padding: 2px 0;
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      font-weight: 600;
+    }
   </style>
 </head>
 
@@ -50,8 +149,8 @@
       <div class="navbar-nav ms-auto flex-row">
         <a class="nav-link me-3" href="/about/">About</a>
         <a class="nav-link me-3" href="/portfolio/">Portfolio</a>
-        <button class="btn btn-link nav-link p-0" id="theme-toggle" type="button">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half"
+        <button class="btn btn-link nav-link p-0" id="theme-toggle" type="button" aria-label="테마 전환">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half" aria-hidden="true" focusable="false"
             viewBox="0 0 16 16">
             <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z" />
           </svg>
@@ -77,240 +176,848 @@
   </footer>
 
   <script type="module">
-    import { prepareWithSegments, layoutWithLines } from '/assets/js/pretext.js';
+    const { marked } = window
 
-    const BODY_FONT = '500 16px "Pretendard Variable"';
-    const H1_FONT = '700 2rem "Pretendard Variable"';
-    const H2_FONT = '600 1.5rem "Pretendard Variable"';
-    const H3_FONT = '600 1.25rem "Pretendard Variable"';
-    const DEFAULT_LINE_HEIGHT = 25.6;
-    const TARGET_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, blockquote';
-    const EXCLUDED_SELECTOR = 'pre, code, img';
+    const FONT_FAMILY = '"Pretendard Variable", -apple-system, BlinkMacSystemFont, sans-serif'
+    const MONO_FAMILY = '"SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace'
+    const BODY_FONT = `500 16px ${FONT_FAMILY}`
+    const BOLD_FONT = `700 16px ${FONT_FAMILY}`
+    const H1_FONT = `800 28px ${FONT_FAMILY}`
+    const H2_FONT = `700 22px ${FONT_FAMILY}`
+    const H3_FONT = `600 18px ${FONT_FAMILY}`
+    const INLINE_CODE_FONT = `600 13px ${MONO_FAMILY}`
+    const CODE_FONT = `500 14px ${MONO_FAMILY}`
 
-    let preparedTextNodes = [];
-    let resizeFrame = null;
+    const BODY_LINE_HEIGHT = 26
+    const H1_LINE_HEIGHT = 36
+    const H2_LINE_HEIGHT = 30
+    const H3_LINE_HEIGHT = 25
+    const CODE_LINE_HEIGHT = 20
+    const BLOCK_GAP = 16
+    const CODE_BLOCK_PADDING_X = 16
+    const CODE_BLOCK_PADDING_Y = 12
+    const INLINE_CODE_EXTRA_WIDTH = 12
+    const BLOCKQUOTE_INDENT = 20
+    const LIST_NESTING_INDENT = 24
+    const LIST_MARKER_GAP = 10
+    const LIST_ITEM_GAP = 10
 
-    function getFontForElement(element) {
-      const tagName = element.tagName.toUpperCase();
+    const postTitleEl = document.getElementById('post-title')
+    const postDateEl = document.getElementById('post-date')
+    const postContentEl = document.getElementById('post-content')
+    const themeToggleEl = document.getElementById('theme-toggle')
 
-      if (tagName === 'H1') return H1_FONT;
-      if (tagName === 'H2') return H2_FONT;
-      if (tagName === 'H3') return H3_FONT;
-
-      return BODY_FONT;
+    const renderState = {
+      markdown: '',
+      blocks: [],
+      mode: 'fallback',
+      lastWidth: 0,
+      resizeTimer: null,
+      pretext: null,
     }
 
-    function getLineHeightForElement(element) {
-      const computedLineHeight = Number.parseFloat(window.getComputedStyle(element).lineHeight);
-      return Number.isFinite(computedLineHeight) ? computedLineHeight : DEFAULT_LINE_HEIGHT;
+    let pretextPromise = null
+
+    function getFontsReadyPromise() {
+      if (document.fonts?.ready) {
+        return document.fonts.ready.catch(() => undefined)
+      }
+      return Promise.resolve()
     }
 
-    function getContainerWidth(element) {
-      return Math.max(0, element.clientWidth || element.getBoundingClientRect().width || 0);
+    function debounce(fn, delay) {
+      return (...args) => {
+        window.clearTimeout(renderState.resizeTimer)
+        renderState.resizeTimer = window.setTimeout(() => fn(...args), delay)
+      }
     }
 
-    function isInsideExcludedElement(node, root) {
-      let current = node.parentElement;
+    function normalizeFrontmatterValue(value) {
+      const trimmed = value.trim()
+      if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        return trimmed.slice(1, -1)
+      }
+      return trimmed
+    }
 
-      while (current && current !== root) {
-        if (current.matches(EXCLUDED_SELECTOR)) {
-          return true;
+    function extractFrontmatter(markdown) {
+      const match = markdown.match(/^---\r?\n([\s\S]+?)\r?\n---\r?\n?/)
+      const data = {}
+      let body = markdown
+
+      if (match) {
+        const lines = match[1].split(/\r?\n/)
+        for (const line of lines) {
+          const separatorIndex = line.indexOf(':')
+          if (separatorIndex === -1) continue
+          const key = line.slice(0, separatorIndex).trim()
+          const value = line.slice(separatorIndex + 1)
+          if (!key) continue
+          data[key] = normalizeFrontmatterValue(value)
         }
-
-        current = current.parentElement;
+        body = markdown.slice(match[0].length)
       }
 
-      return false;
+      return { data, body }
     }
 
-    function isInsideNestedTarget(node, root) {
-      let current = node.parentElement;
-
-      while (current && current !== root) {
-        if (current.matches(TARGET_SELECTOR)) {
-          return true;
-        }
-
-        current = current.parentElement;
+    async function loadPretextApi() {
+      if (!pretextPromise) {
+        pretextPromise = Promise.all([
+          import('/assets/js/pretext/layout.js'),
+          import('/assets/js/pretext/rich-inline.js'),
+        ]).then(([layoutModule, richInlineModule]) => ({
+          ...layoutModule,
+          ...richInlineModule,
+        }))
       }
 
-      return false;
+      return pretextPromise
     }
 
-    function createLineSpan(line) {
-      const lineSpan = document.createElement('span');
-      lineSpan.style.display = 'inline-block';
-      lineSpan.style.whiteSpace = 'pre';
-      lineSpan.style.width = `${line.width}px`;
-      lineSpan.textContent = line.text;
-      return lineSpan;
+    function getHeadingSpec(depth) {
+      if (depth === 1) {
+        return { font: H1_FONT, lineHeight: H1_LINE_HEIGHT, size: 28, weight: 800 }
+      }
+      if (depth === 2) {
+        return { font: H2_FONT, lineHeight: H2_LINE_HEIGHT, size: 22, weight: 700 }
+      }
+      if (depth === 3) {
+        return { font: H3_FONT, lineHeight: H3_LINE_HEIGHT, size: 18, weight: 600 }
+      }
+      if (depth === 4) {
+        return { font: `600 17px ${FONT_FAMILY}`, lineHeight: BODY_LINE_HEIGHT, size: 17, weight: 600 }
+      }
+      return { font: BOLD_FONT, lineHeight: BODY_LINE_HEIGHT, size: 16, weight: 700 }
     }
 
-    function renderPreparedNode(entry) {
-      const containerWidth = getContainerWidth(entry.block);
-      entry.wrapper.replaceChildren();
-
-      if (!containerWidth) {
-        entry.wrapper.textContent = entry.text;
-        return;
+    function buildFont(spec, marks) {
+      if (marks.code) {
+        return INLINE_CODE_FONT
       }
 
-      const layout = layoutWithLines(entry.prepared, containerWidth, entry.lineHeight);
-
-      if (!layout.lines.length) {
-        entry.wrapper.textContent = entry.text;
-        return;
-      }
-
-      layout.lines.forEach((line, index) => {
-        entry.wrapper.appendChild(createLineSpan(line));
-
-        if (index < layout.lines.length - 1) {
-          entry.wrapper.appendChild(document.createElement('br'));
-        }
-      });
+      const fontStyle = marks.em ? 'italic ' : ''
+      const fontWeight = marks.strong ? Math.max(spec.weight, 700) : spec.weight
+      return `${fontStyle}${fontWeight} ${spec.size}px ${FONT_FAMILY}`
     }
 
-    function collectTextNodes(block) {
-      const textNodes = [];
-      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
-        acceptNode(node) {
-          if (!node.textContent?.trim()) {
-            return NodeFilter.FILTER_REJECT;
+    function buildPieceClasses(marks) {
+      const classes = []
+      if (marks.strong) classes.push('pt-strong')
+      if (marks.em) classes.push('pt-em')
+      if (marks.del) classes.push('pt-del')
+      if (marks.href) classes.push('pt-link')
+      if (marks.code) classes.push('code-span')
+      return classes.join(' ')
+    }
+
+    function canRenderInlineWithPretext(tokens) {
+      if (!Array.isArray(tokens)) return true
+
+      for (const token of tokens) {
+        if (!token) continue
+
+        if (token.type === 'text' || token.type === 'escape' || token.type === 'codespan' || token.type === 'br') {
+          if (Array.isArray(token.tokens) && !canRenderInlineWithPretext(token.tokens)) {
+            return false
           }
-
-          if (isInsideExcludedElement(node, block)) {
-            return NodeFilter.FILTER_REJECT;
-          }
-
-          if (isInsideNestedTarget(node, block)) {
-            return NodeFilter.FILTER_REJECT;
-          }
-
-          return NodeFilter.FILTER_ACCEPT;
+          continue
         }
-      });
 
-      let currentNode = walker.nextNode();
-      while (currentNode) {
-        textNodes.push(currentNode);
-        currentNode = walker.nextNode();
+        if (token.type === 'strong' || token.type === 'em' || token.type === 'del' || token.type === 'link') {
+          if (!canRenderInlineWithPretext(token.tokens)) {
+            return false
+          }
+          continue
+        }
+
+        return false
       }
 
-      return textNodes;
+      return true
     }
 
-    function buildPreparedNodeEntry(textNode, block) {
-      const text = textNode.textContent;
-      const wrapper = document.createElement('span');
-      const font = getFontForElement(block);
-      const lineHeight = getLineHeightForElement(block);
-
-      wrapper.setAttribute('data-pretext-lines', '');
-      textNode.parentNode.replaceChild(wrapper, textNode);
+    function createInlinePiece(text, spec, marks) {
+      if (!text) return null
 
       return {
-        block,
-        wrapper,
         text,
-        prepared: prepareWithSegments(text, font),
-        lineHeight,
-      };
+        font: buildFont(spec, marks),
+        breakMode: marks.code ? 'never' : 'normal',
+        extraWidth: marks.code ? INLINE_CODE_EXTRA_WIDTH : 0,
+        className: buildPieceClasses(marks),
+        href: marks.href || '',
+        isCode: !!marks.code,
+      }
     }
 
-    function relayoutPreparedNodes() {
-      preparedTextNodes.forEach((entry) => {
-        renderPreparedNode(entry);
-      });
+    function collectInlineSegments(tokens, spec, marks = {}, segments = [[]]) {
+      for (const token of tokens || []) {
+        if (!token) continue
+
+        switch (token.type) {
+          case 'text': {
+            if (Array.isArray(token.tokens) && token.tokens.length > 0) {
+              collectInlineSegments(token.tokens, spec, marks, segments)
+              break
+            }
+
+            const piece = createInlinePiece(token.text || token.raw || '', spec, marks)
+            if (piece) segments[segments.length - 1].push(piece)
+            break
+          }
+          case 'escape': {
+            const piece = createInlinePiece(token.text || token.raw || '', spec, marks)
+            if (piece) segments[segments.length - 1].push(piece)
+            break
+          }
+          case 'strong':
+            collectInlineSegments(token.tokens, spec, { ...marks, strong: true }, segments)
+            break
+          case 'em':
+            collectInlineSegments(token.tokens, spec, { ...marks, em: true }, segments)
+            break
+          case 'del':
+            collectInlineSegments(token.tokens, spec, { ...marks, del: true }, segments)
+            break
+          case 'link':
+            collectInlineSegments(token.tokens, spec, { ...marks, href: token.href || '' }, segments)
+            break
+          case 'codespan': {
+            const piece = createInlinePiece(token.text || '', spec, { ...marks, code: true })
+            if (piece) segments[segments.length - 1].push(piece)
+            break
+          }
+          case 'br':
+            segments.push([])
+            break
+          case 'image': {
+            const piece = createInlinePiece(token.text || token.href || '', spec, { ...marks, href: token.href || marks.href || '' })
+            if (piece) segments[segments.length - 1].push(piece)
+            break
+          }
+          default:
+            break
+        }
+      }
+
+      return segments
     }
 
-    function handleResize() {
-      if (resizeFrame !== null) {
-        window.cancelAnimationFrame(resizeFrame);
-      }
+    function createRichBlock(tokens, spec, pretext) {
+      const rawSegments = collectInlineSegments(tokens, spec)
+      const segments = rawSegments.map(pieces => {
+        if (pieces.length === 0) {
+          return {
+            pieces: [],
+            prepared: null,
+          }
+        }
 
-      resizeFrame = window.requestAnimationFrame(() => {
-        resizeFrame = null;
-        relayoutPreparedNodes();
-      });
+        return {
+          pieces,
+          prepared: pretext.prepareRichInline(
+            pieces.map(piece => ({
+              text: piece.text,
+              font: piece.font,
+              break: piece.breakMode,
+              extraWidth: piece.extraWidth,
+            })),
+          ),
+        }
+      })
+
+      return {
+        type: 'rich',
+        lineHeight: spec.lineHeight,
+        segments,
+      }
     }
 
-    window.__applyPostPretextEnhancement = async function applyPostPretextEnhancement(root) {
-      if (!root) {
-        preparedTextNodes = [];
-        return;
+    function getStandaloneImageData(token) {
+      const inlineTokens = token?.tokens || []
+      if (inlineTokens.length === 1 && inlineTokens[0].type === 'image') {
+        return {
+          href: inlineTokens[0].href,
+          title: inlineTokens[0].title,
+          alt: inlineTokens[0].text || '',
+          linkHref: '',
+        }
       }
 
-      if (document.fonts?.ready) {
-        await document.fonts.ready;
+      if (inlineTokens.length === 1 && inlineTokens[0].type === 'link') {
+        const linkToken = inlineTokens[0]
+        if (linkToken.tokens?.length === 1 && linkToken.tokens[0].type === 'image') {
+          return {
+            href: linkToken.tokens[0].href,
+            title: linkToken.tokens[0].title,
+            alt: linkToken.tokens[0].text || '',
+            linkHref: linkToken.href || '',
+          }
+        }
       }
 
-      preparedTextNodes = [];
+      return null
+    }
 
-      root.querySelectorAll(TARGET_SELECTOR).forEach((block) => {
-        collectTextNodes(block).forEach((textNode) => {
-          preparedTextNodes.push(buildPreparedNodeEntry(textNode, block));
-        });
-      });
+    function createHtmlBlock(html) {
+      return {
+        type: 'html',
+        html,
+      }
+    }
 
-      relayoutPreparedNodes();
-    };
+    function createImageBlock(imageData) {
+      return {
+        type: 'image',
+        ...imageData,
+      }
+    }
 
-    window.addEventListener('resize', handleResize);
-  </script>
+    function createListBlock(token, pretext, parser) {
+      const startIndex = token.start || 1
+      const items = (token.items || []).map((item, index) => {
+        const markerText = token.ordered ? `${startIndex + index}.` : '•'
+        const markerPrepared = pretext.prepareWithSegments(markerText, BODY_FONT)
+        const itemTokens = item.tokens && item.tokens.length > 0 ? item.tokens : marked.lexer(item.text || '')
 
-  <script>
-    async function loadPost() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const postId = urlParams.get('id');
-      if (!postId) {
-        window.location.href = '/';
-        return;
+        return {
+          markerText,
+          markerPrepared,
+          blocks: buildPreparedBlocks(itemTokens, pretext, parser),
+        }
+      })
+
+      let maxMarkerWidth = 0
+      for (const item of items) {
+        const markerWidth = pretext.measureNaturalWidth(item.markerPrepared)
+        if (markerWidth > maxMarkerWidth) {
+          maxMarkerWidth = markerWidth
+        }
+      }
+
+      return {
+        type: 'list',
+        items,
+        maxMarkerWidth,
+      }
+    }
+
+    function buildPreparedBlocks(tokens, pretext, parser) {
+      const blocks = []
+
+      for (const token of tokens || []) {
+        if (!token || token.type === 'space') {
+          continue
+        }
+
+        if (token.type === 'paragraph') {
+          const standaloneImage = getStandaloneImageData(token)
+          if (standaloneImage) {
+            blocks.push(createImageBlock(standaloneImage))
+            continue
+          }
+
+          if (canRenderInlineWithPretext(token.tokens)) {
+            blocks.push(createRichBlock(token.tokens || [], { lineHeight: BODY_LINE_HEIGHT, size: 16, weight: 500 }, pretext))
+          } else {
+            blocks.push(createHtmlBlock(parser([token])))
+          }
+          continue
+        }
+
+        if (token.type === 'text') {
+          const inlineTokens = token.tokens && token.tokens.length > 0 ? token.tokens : [{ type: 'text', text: token.text || token.raw || '' }]
+          if (canRenderInlineWithPretext(inlineTokens)) {
+            blocks.push(createRichBlock(inlineTokens, { lineHeight: BODY_LINE_HEIGHT, size: 16, weight: 500 }, pretext))
+          } else {
+            blocks.push(createHtmlBlock(`<p>${marked.parseInline(token.text || token.raw || '')}</p>`))
+          }
+          continue
+        }
+
+        if (token.type === 'heading') {
+          const headingSpec = getHeadingSpec(token.depth || 1)
+          if (canRenderInlineWithPretext(token.tokens)) {
+            blocks.push(createRichBlock(token.tokens || [], headingSpec, pretext))
+          } else {
+            blocks.push(createHtmlBlock(parser([token])))
+          }
+          continue
+        }
+
+        if (token.type === 'code') {
+          blocks.push({
+            type: 'code',
+            prepared: pretext.prepareWithSegments(token.text || '', CODE_FONT, { whiteSpace: 'pre-wrap' }),
+          })
+          continue
+        }
+
+        if (token.type === 'list') {
+          blocks.push(createListBlock(token, pretext, parser))
+          continue
+        }
+
+        if (token.type === 'blockquote') {
+          blocks.push({
+            type: 'blockquote',
+            blocks: buildPreparedBlocks(token.tokens || [], pretext, parser),
+          })
+          continue
+        }
+
+        if (token.type === 'hr') {
+          blocks.push({ type: 'rule' })
+          continue
+        }
+
+        if (token.type === 'image') {
+          blocks.push(createImageBlock({ href: token.href, title: token.title, alt: token.text || '', linkHref: '' }))
+          continue
+        }
+
+        if (token.type === 'table') {
+          blocks.push(createHtmlBlock(parser([token])))
+          continue
+        }
+
+        if (token.type === 'html') {
+          blocks.push(createHtmlBlock(token.raw || token.text || ''))
+          continue
+        }
+
+        blocks.push(createHtmlBlock(parser([token])))
+      }
+
+      return blocks
+    }
+
+    function appendFragmentToLine(lineEl, piece, fragment) {
+      const fragmentEl = piece.href ? document.createElement('a') : document.createElement('span')
+      fragmentEl.textContent = fragment.text
+
+      if (piece.href) {
+        fragmentEl.href = piece.href
+      }
+
+      fragmentEl.style.display = piece.isCode ? 'inline-flex' : 'inline-block'
+      fragmentEl.style.alignItems = piece.isCode ? 'center' : ''
+      fragmentEl.style.justifyContent = piece.isCode ? 'center' : ''
+      fragmentEl.style.boxSizing = piece.isCode ? 'border-box' : ''
+      fragmentEl.style.font = piece.font
+      fragmentEl.style.color = 'inherit'
+      fragmentEl.style.textDecoration = piece.href ? 'underline' : 'inherit'
+      fragmentEl.style.verticalAlign = 'top'
+
+      if (fragment.gapBefore > 0) {
+        fragmentEl.style.marginLeft = `${fragment.gapBefore}px`
+      }
+
+      if (piece.isCode) {
+        fragmentEl.style.width = `${fragment.occupiedWidth}px`
+      }
+
+      if (piece.className) {
+        fragmentEl.className = piece.className
+      }
+
+      lineEl.appendChild(fragmentEl)
+    }
+
+    function renderRichBlock(block, host, top, left, width, pretext) {
+      const blockEl = document.createElement('div')
+      blockEl.className = 'pt-block'
+      blockEl.style.top = `${top}px`
+      blockEl.style.left = `${left}px`
+      blockEl.style.width = `${width}px`
+
+      let lineIndex = 0
+
+      for (const segment of block.segments) {
+        if (!segment.prepared) {
+          lineIndex += 1
+          continue
+        }
+
+        const stats = pretext.measureRichInlineStats(segment.prepared, Math.max(1, width))
+        if (stats.lineCount === 0) {
+          lineIndex += 1
+          continue
+        }
+
+        pretext.walkRichInlineLineRanges(segment.prepared, Math.max(1, width), lineRange => {
+          const line = pretext.materializeRichInlineLineRange(segment.prepared, lineRange)
+          const lineEl = document.createElement('div')
+          lineEl.className = 'pt-line'
+          lineEl.style.top = `${lineIndex * block.lineHeight}px`
+          lineEl.style.height = `${block.lineHeight}px`
+          lineEl.style.lineHeight = `${block.lineHeight}px`
+
+          for (const fragment of line.fragments) {
+            appendFragmentToLine(lineEl, segment.pieces[fragment.itemIndex], fragment)
+          }
+
+          blockEl.appendChild(lineEl)
+          lineIndex += 1
+        })
+      }
+
+      const height = Math.max(block.lineHeight, lineIndex * block.lineHeight)
+      blockEl.style.height = `${height}px`
+      host.appendChild(blockEl)
+      return height
+    }
+
+    function renderCodeBlock(block, host, top, left, width, pretext) {
+      const boxEl = document.createElement('div')
+      boxEl.className = 'pt-block pt-code-box'
+      boxEl.style.top = `${top}px`
+      boxEl.style.left = `${left}px`
+      boxEl.style.width = `${width}px`
+
+      const innerWidth = Math.max(1, width - CODE_BLOCK_PADDING_X * 2)
+      pretext.measureLineStats(block.prepared, innerWidth)
+      pretext.measureNaturalWidth(block.prepared)
+      const laidOut = pretext.layoutWithLines(block.prepared, innerWidth, CODE_LINE_HEIGHT)
+
+      laidOut.lines.forEach((line, index) => {
+        const lineEl = document.createElement('div')
+        lineEl.className = 'pt-code-line'
+        lineEl.textContent = line.text
+        lineEl.style.left = `${CODE_BLOCK_PADDING_X}px`
+        lineEl.style.top = `${CODE_BLOCK_PADDING_Y + index * CODE_LINE_HEIGHT}px`
+        lineEl.style.height = `${CODE_LINE_HEIGHT}px`
+        lineEl.style.lineHeight = `${CODE_LINE_HEIGHT}px`
+        boxEl.appendChild(lineEl)
+      })
+
+      const height = Math.max(CODE_LINE_HEIGHT + CODE_BLOCK_PADDING_Y * 2, laidOut.height + CODE_BLOCK_PADDING_Y * 2)
+      boxEl.style.height = `${height}px`
+      host.appendChild(boxEl)
+      return height
+    }
+
+    function renderRuleBlock(host, top, left, width) {
+      const ruleEl = document.createElement('div')
+      ruleEl.className = 'pt-block pt-rule'
+      ruleEl.style.top = `${top}px`
+      ruleEl.style.left = `${left}px`
+      ruleEl.style.width = `${width}px`
+      host.appendChild(ruleEl)
+      return 1
+    }
+
+    function renderMeasuredDomBlock(host, top, left, width, buildContent) {
+      const blockEl = document.createElement('div')
+      blockEl.className = 'pt-block'
+      blockEl.style.top = `${top}px`
+      blockEl.style.left = `${left}px`
+      blockEl.style.width = `${width}px`
+
+      buildContent(blockEl)
+      host.appendChild(blockEl)
+      const height = blockEl.offsetHeight
+      blockEl.style.height = `${height}px`
+
+      // If the block contains images, re-layout once they load
+      // (images inside HTML fallback blocks have 0 height before load)
+      const imgs = blockEl.querySelectorAll('img')
+      for (const img of imgs) {
+        if (!img.complete) {
+          img.addEventListener('load', () => renderPretextLayout(true), { once: true })
+          img.addEventListener('error', () => renderPretextLayout(true), { once: true })
+        }
+      }
+
+      return height
+    }
+
+    function renderImageBlock(block, host, top, left, width) {
+      return renderMeasuredDomBlock(host, top, left, width, blockEl => {
+        const imgEl = document.createElement('img')
+        imgEl.className = 'pt-img'
+        imgEl.src = block.href || ''
+        imgEl.alt = block.alt || ''
+
+        if (block.title) {
+          imgEl.title = block.title
+        }
+
+        imgEl.addEventListener('load', () => renderPretextLayout(true), { once: true })
+        imgEl.addEventListener('error', () => renderPretextLayout(true), { once: true })
+
+        if (block.linkHref) {
+          const linkEl = document.createElement('a')
+          linkEl.href = block.linkHref
+          linkEl.appendChild(imgEl)
+          blockEl.appendChild(linkEl)
+          return
+        }
+
+        blockEl.appendChild(imgEl)
+      })
+    }
+
+    function renderHtmlBlock(block, host, top, left, width) {
+      return renderMeasuredDomBlock(host, top, left, width, blockEl => {
+        blockEl.innerHTML = block.html
+      })
+    }
+
+    function renderBlockquoteBlock(block, host, top, left, width, pretext) {
+      const blockEl = document.createElement('div')
+      blockEl.className = 'pt-block'
+      blockEl.style.top = `${top}px`
+      blockEl.style.left = `${left}px`
+      blockEl.style.width = `${width}px`
+
+      const railEl = document.createElement('div')
+      railEl.className = 'pt-quote-rail'
+      blockEl.appendChild(railEl)
+
+      const innerEl = document.createElement('div')
+      innerEl.style.position = 'absolute'
+      innerEl.style.left = `${BLOCKQUOTE_INDENT}px`
+      innerEl.style.top = '0'
+      innerEl.style.width = `${Math.max(1, width - BLOCKQUOTE_INDENT)}px`
+      blockEl.appendChild(innerEl)
+
+      // Append to host BEFORE rendering children so they are in
+      // the live DOM when offsetHeight is measured.
+      host.appendChild(blockEl)
+
+      const height = renderBlocks(block.blocks, innerEl, Math.max(1, width - BLOCKQUOTE_INDENT), pretext)
+      innerEl.style.height = `${height}px`
+      blockEl.style.height = `${height}px`
+      return height
+    }
+
+    function renderListBlock(block, host, top, left, width, pretext) {
+      const blockEl = document.createElement('div')
+      blockEl.className = 'pt-block'
+      blockEl.style.top = `${top}px`
+      blockEl.style.left = `${left}px`
+      blockEl.style.width = `${width}px`
+
+      // Append to host BEFORE rendering items so that child blocks
+      // are in the live DOM when offsetHeight is measured (needed for
+      // HTML fallback blocks that contain images or other replaced content).
+      host.appendChild(blockEl)
+
+      const markerColumnWidth = Math.max(block.maxMarkerWidth, 12)
+      const contentOffset = markerColumnWidth + LIST_MARKER_GAP
+      const nestedWidth = Math.max(1, width - contentOffset)
+      let currentTop = 0
+
+      block.items.forEach((item, index) => {
+        const markerEl = document.createElement('div')
+        markerEl.className = 'pt-marker'
+        markerEl.textContent = item.markerText
+        markerEl.style.left = '0'
+        markerEl.style.top = `${currentTop}px`
+        markerEl.style.width = `${markerColumnWidth}px`
+        markerEl.style.font = BODY_FONT
+        markerEl.style.lineHeight = `${BODY_LINE_HEIGHT}px`
+        markerEl.style.textAlign = 'right'
+        blockEl.appendChild(markerEl)
+
+        const itemContentEl = document.createElement('div')
+        itemContentEl.style.position = 'absolute'
+        itemContentEl.style.left = `${contentOffset}px`
+        itemContentEl.style.top = `${currentTop}px`
+        itemContentEl.style.width = `${nestedWidth}px`
+        blockEl.appendChild(itemContentEl)
+
+        const itemHeight = renderBlocks(item.blocks, itemContentEl, nestedWidth, pretext)
+        itemContentEl.style.height = `${itemHeight}px`
+
+        currentTop += itemHeight
+        if (index < block.items.length - 1) {
+          currentTop += LIST_ITEM_GAP
+        }
+      })
+
+      blockEl.style.height = `${currentTop}px`
+      return currentTop
+    }
+
+    function renderSingleBlock(block, host, top, width, pretext) {
+      if (block.type === 'rich') {
+        return renderRichBlock(block, host, top, 0, width, pretext)
+      }
+
+      if (block.type === 'code') {
+        return renderCodeBlock(block, host, top, 0, width, pretext)
+      }
+
+      if (block.type === 'rule') {
+        return renderRuleBlock(host, top, 0, width)
+      }
+
+      if (block.type === 'image') {
+        return renderImageBlock(block, host, top, 0, width)
+      }
+
+      if (block.type === 'html') {
+        return renderHtmlBlock(block, host, top, 0, width)
+      }
+
+      if (block.type === 'blockquote') {
+        return renderBlockquoteBlock(block, host, top, 0, width, pretext)
+      }
+
+      if (block.type === 'list') {
+        return renderListBlock(block, host, top, 0, width, pretext)
+      }
+
+      return 0
+    }
+
+    function renderBlocks(blocks, host, width, pretext) {
+      let currentTop = 0
+
+      blocks.forEach((block, index) => {
+        const blockHeight = renderSingleBlock(block, host, currentTop, width, pretext)
+        currentTop += blockHeight
+        if (index < blocks.length - 1) {
+          currentTop += BLOCK_GAP
+        }
+      })
+
+      return currentTop
+    }
+
+    function renderFallback(markdownText) {
+      postContentEl.innerHTML = marked.parse(markdownText)
+      postContentEl.style.height = 'auto'
+      renderState.mode = 'fallback'
+      renderState.blocks = []
+      renderState.lastWidth = Math.round(postContentEl.getBoundingClientRect().width)
+    }
+
+    function renderPretextLayout(force = false) {
+      if (renderState.mode !== 'pretext' || !renderState.pretext) {
+        return
+      }
+
+      const nextWidth = Math.max(1, Math.round(postContentEl.getBoundingClientRect().width))
+      if (!force && nextWidth === renderState.lastWidth) {
+        return
       }
 
       try {
-        const response = await fetch(`/_posts/${postId}.md`);
-        if (!response.ok) throw new Error('Post not found');
-
-        let text = await response.text();
-
-        // Remove frontmatter
-        const frontmatterMatch = text.match(/^---\r?\n([\s\S]+?)\r?\n---/);
-        let title = postId;
-        let date = '';
-
-        if (frontmatterMatch) {
-          const yaml = frontmatterMatch[1];
-          yaml.split('\n').forEach(line => {
-            const [key, ...val] = line.split(':');
-            if (key.trim() === 'title') title = val.join(':').trim();
-            if (key.trim() === 'date') date = val.join(':').trim();
-          });
-          text = text.replace(frontmatterMatch[0], '');
-        }
-
-        document.title = `${title} - ahh`;
-        document.getElementById('post-title').textContent = title;
-        document.getElementById('post-date').textContent = date;
-        document.getElementById('post-content').innerHTML = marked.parse(text);
-
-        if (typeof window.__applyPostPretextEnhancement === 'function') {
-          await window.__applyPostPretextEnhancement(document.getElementById('post-content'));
-        }
-      } catch {
-        document.getElementById('post-title').textContent = 'Error';
-        document.getElementById('post-content').innerHTML = '<p>포스트를 불러오는데 실패했습니다.</p>';
+        postContentEl.innerHTML = ''
+        const totalHeight = renderBlocks(renderState.blocks, postContentEl, nextWidth, renderState.pretext)
+        postContentEl.style.height = `${Math.max(1, totalHeight)}px`
+        renderState.lastWidth = nextWidth
+      } catch (error) {
+        console.error('Pretext layout failed, falling back to marked.parse().', error)
+        renderFallback(renderState.markdown)
       }
     }
 
-    document.getElementById('theme-toggle').addEventListener('click', () => {
-      const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-bs-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
-    });
+    async function renderMarkdown(markdownText) {
+      renderState.markdown = markdownText
+      await getFontsReadyPromise()
 
-    window.addEventListener('DOMContentLoaded', loadPost);
+      try {
+        const pretext = await loadPretextApi()
+        pretext.clearCache()
+
+        const tokens = marked.lexer(markdownText)
+        renderState.pretext = pretext
+        renderState.blocks = buildPreparedBlocks(tokens, pretext, marked.parser)
+        renderState.mode = 'pretext'
+        renderState.lastWidth = 0
+        renderPretextLayout(true)
+      } catch (error) {
+        console.error('Pretext render failed, using marked.parse() fallback.', error)
+        renderFallback(markdownText)
+      }
+    }
+
+    function scheduleRelayout(force = false) {
+      window.clearTimeout(renderState.resizeTimer)
+      renderState.resizeTimer = window.setTimeout(() => renderPretextLayout(force), 120)
+    }
+
+    async function fetchPostContent(postId) {
+      let postEntry = null
+
+      try {
+        const postsResponse = await fetch('/assets/data/posts.json')
+        if (postsResponse.ok) {
+          const posts = await postsResponse.json()
+          postEntry = Array.isArray(posts) ? posts.find(entry => entry.id === postId) || null : null
+        }
+      } catch (error) {
+        console.warn('Failed to read posts.json, trying direct markdown path.', error)
+      }
+
+      if (postEntry?.path) {
+        const entryResponse = await fetch(`/_posts/${postEntry.path}`)
+        if (entryResponse.ok) {
+          return {
+            postEntry,
+            markdown: await entryResponse.text(),
+          }
+        }
+      }
+
+      const fallbackResponse = await fetch(`/_posts/${postId}.md`)
+      if (!fallbackResponse.ok) {
+        throw new Error('Post not found')
+      }
+
+      return {
+        postEntry,
+        markdown: await fallbackResponse.text(),
+      }
+    }
+
+    async function loadPost() {
+      const urlParams = new URLSearchParams(window.location.search)
+      const postId = urlParams.get('id')
+
+      if (!postId) {
+        window.location.href = '/'
+        return
+      }
+
+      try {
+        const { postEntry, markdown } = await fetchPostContent(postId)
+        const { data, body } = extractFrontmatter(markdown)
+        const title = data.title || postEntry?.title || postId
+        const date = data.date || postEntry?.fullDate || postEntry?.date || ''
+
+        document.title = `${title} - ahh`
+        postTitleEl.textContent = title
+        postDateEl.textContent = date
+
+        await renderMarkdown(body)
+      } catch (error) {
+        console.error(error)
+        postTitleEl.textContent = 'Error'
+        postDateEl.textContent = ''
+        postContentEl.style.height = 'auto'
+        postContentEl.innerHTML = '<p>포스트를 불러오는데 실패했습니다.</p>'
+      }
+    }
+
+    themeToggleEl.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-bs-theme')
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark'
+      document.documentElement.setAttribute('data-bs-theme', newTheme)
+      localStorage.setItem('theme', newTheme)
+      scheduleRelayout(true)
+    })
+
+    window.addEventListener('resize', debounce(() => {
+      renderPretextLayout(false)
+    }, 120))
+
+    loadPost()
   </script>
 </body>
 
