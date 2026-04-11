@@ -734,6 +734,46 @@
         }
       }
 
+      // Watch iframes that resize via postMessage (e.g. the pretext demo widget)
+      // Instead of a full re-render (which destroys the iframe causing a reload loop),
+      // shift all subsequent absolutely-positioned siblings when the iframe resizes.
+      const iframes = blockEl.querySelectorAll('iframe')
+      if (iframes.length > 0) {
+        // Poll iframe height a few times after initial render to catch async resizes
+        let pollCount = 0
+        const maxPolls = 10
+        const pollInterval = 500
+        const pollTimer = setInterval(() => {
+          pollCount += 1
+          const oldH = parseInt(blockEl.style.height, 10) || 0
+          blockEl.style.height = 'auto'
+          const newH = blockEl.offsetHeight
+          if (newH !== oldH) {
+            blockEl.style.height = `${newH}px`
+            const delta = newH - oldH
+            let sibling = blockEl.nextElementSibling
+            while (sibling) {
+              if (sibling.classList.contains('pt-block')) {
+                const currentTop = parseInt(sibling.style.top, 10) || 0
+                sibling.style.top = `${currentTop + delta}px`
+              }
+              sibling = sibling.nextElementSibling
+            }
+            const container = blockEl.parentElement
+            if (container) {
+              const ch = parseInt(container.style.height, 10) || 0
+              if (ch > 0) {
+                container.style.height = `${ch + delta}px`
+              }
+            }
+            clearInterval(pollTimer)
+          } else {
+            blockEl.style.height = `${oldH}px`
+          }
+          if (pollCount >= maxPolls) clearInterval(pollTimer)
+        }, pollInterval)
+      }
+
       return height
     }
 
