@@ -1023,15 +1023,81 @@
         }
       }
 
-      const fallbackResponse = await fetch(`/_posts/${postId}.md`)
-      if (!fallbackResponse.ok) {
-        throw new Error('Post not found')
+      const fallbackPaths = [
+        `/_posts/${postId}.md`,
+        `/_posts/old/${postId}.md`,
+      ]
+
+      for (const fallbackPath of fallbackPaths) {
+        const fallbackResponse = await fetch(fallbackPath)
+        if (fallbackResponse.ok) {
+          return {
+            postEntry,
+            markdown: await fallbackResponse.text(),
+          }
+        }
       }
 
-      return {
-        postEntry,
-        markdown: await fallbackResponse.text(),
+      throw new Error('Post not found')
+    }
+
+    function handleEmbeddedFrameMessage(event) {
+      if (event.origin !== window.location.origin) {
+        return
       }
+
+      const data = event.data
+      if (!data || data.type !== 'parser-js-height' || !data.frameId) {
+        return
+      }
+
+      const iframe = document.getElementById(data.frameId)
+      if (!(iframe instanceof HTMLIFrameElement)) {
+        return
+      }
+
+      const requestedHeight = Math.ceil(Number(data.height))
+      if (!Number.isFinite(requestedHeight) || requestedHeight < 480) {
+        return
+      }
+
+      const blockEl = iframe.closest('.pt-block')
+      const previousBlockHeight = blockEl instanceof HTMLElement
+        ? (Number.parseInt(blockEl.style.height, 10) || blockEl.offsetHeight)
+        : 0
+
+      iframe.style.height = `${requestedHeight}px`
+
+      if (!(blockEl instanceof HTMLElement)) {
+        return
+      }
+
+      window.requestAnimationFrame(() => {
+        const nextBlockHeight = blockEl.offsetHeight
+        const delta = nextBlockHeight - previousBlockHeight
+
+        if (!delta) {
+          blockEl.style.height = `${nextBlockHeight}px`
+          return
+        }
+
+        blockEl.style.height = `${nextBlockHeight}px`
+
+        let sibling = blockEl.nextElementSibling
+        while (sibling) {
+          if (sibling.classList.contains('pt-block')) {
+            const currentTop = Number.parseInt(sibling.style.top, 10) || 0
+            sibling.style.top = `${currentTop + delta}px`
+          }
+          sibling = sibling.nextElementSibling
+        }
+
+        const container = blockEl.parentElement
+        if (container instanceof HTMLElement) {
+          const containerHeight = Number.parseInt(container.style.height, 10) || container.offsetHeight
+          container.style.height = `${Math.max(1, containerHeight + delta)}px`
+        }
+      })
     }
 
     async function loadPost() {
@@ -1074,6 +1140,7 @@
     window.addEventListener('resize', debounce(() => {
       renderPretextLayout(false)
     }, 120))
+    window.addEventListener('message', handleEmbeddedFrameMessage)
 
     loadPost()
   </script>
