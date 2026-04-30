@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Markdown Parser Visualizer</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <h1>Markdown Parser Visualizer</h1>
+        <div class="top-layout">
+            <section class="editor-shell">
+                <h2>마크다운 입력</h2>
+                <textarea id="source-input" spellcheck="false"></textarea>
+            </section>
+            <section class="result-shell">
+                <h2>렌더링 결과</h2>
+                <div class="result-box" id="rendered-view"></div>
+            </section>
+        </div>
+        <section>
+            <h2>자료구조 시각화</h2>
+            <div class="panel" id="steps-table-view"></div>
+        </section>
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+</html>
