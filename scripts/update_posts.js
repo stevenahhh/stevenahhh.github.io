@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const postsDir = path.join(__dirname, '../_posts');
 const outputFile = path.join(__dirname, '../assets/data/posts.json');
@@ -38,6 +38,30 @@ function collectMarkdownFiles(dir, relativePrefix) {
   return results;
 }
 
+function extractDateFromFilename(fileName) {
+  const compactMatch = fileName.match(/^(\d{2})(\d{2})(\d{2})\d{4}/);
+  if (compactMatch) {
+    const [, year, month, day] = compactMatch;
+    return `20${year}-${month}-${day}`;
+  }
+
+  const legacyMatch = fileName.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (legacyMatch) {
+    return legacyMatch[1];
+  }
+
+  return '';
+}
+
+function extractSequenceFromFilename(fileName) {
+  const compactMatch = fileName.match(/^\d{6}(\d{4})/);
+  if (compactMatch) {
+    return Number.parseInt(compactMatch[1], 10);
+  }
+
+  return Number.MAX_SAFE_INTEGER;
+}
+
 function updatePosts() {
   if (!fs.existsSync(postsDir)) {
     console.error('_posts directory not found');
@@ -54,8 +78,7 @@ function updatePosts() {
     const content = fs.readFileSync(filePath, 'utf8');
     const metadata = parseFrontmatter(content);
 
-    const dateMatch = fileName.match(/^(\d{4}-\d{2}-\d{2})/);
-    let dateStr = metadata.date || (dateMatch ? dateMatch[1] : '');
+    const dateStr = metadata.date || extractDateFromFilename(fileName);
 
     // Clean date for sorting (YYYY-MM-DD)
     const cleanDate = dateStr.split(' ')[0];
@@ -67,16 +90,21 @@ function updatePosts() {
       date: cleanDate,
       fullDate: dateStr,
       year: year,
+      sequence: extractSequenceFromFilename(fileName),
       path: relativePath,
       url: `/post.html?id=${fileName.replace('.md', '')}`
     });
   });
 
-  // Sort by date descending
+  // Sort by date descending, then per-day sequence ascending
   posts.sort((a, b) => {
     const dateA = new Date(a.date || '1970-01-01');
     const dateB = new Date(b.date || '1970-01-01');
-    return dateB - dateA;
+    if (dateB - dateA !== 0) {
+      return dateB - dateA;
+    }
+
+    return a.sequence - b.sequence;
   });
 
   const dir = path.dirname(outputFile);

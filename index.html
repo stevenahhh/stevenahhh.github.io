@@ -32,6 +32,7 @@
         <button class="btn btn-link nav-link p-0" id="theme-toggle" type="button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half"
             viewBox="0 0 16 16">
+            <title>Toggle theme</title>
             <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z" />
           </svg>
         </button>
@@ -230,7 +231,16 @@
           await document.fonts.ready;
         }
 
-        posts.sort((a, b) => new Date(b.date) - new Date(a.date));
+        posts.sort((a, b) => {
+          const dateDiff = new Date(b.date) - new Date(a.date);
+          if (dateDiff !== 0) {
+            return dateDiff;
+          }
+
+          const sequenceA = Number.isFinite(a.sequence) ? a.sequence : Number.MAX_SAFE_INTEGER;
+          const sequenceB = Number.isFinite(b.sequence) ? b.sequence : Number.MAX_SAFE_INTEGER;
+          return sequenceA - sequenceB;
+        });
         allItems = createItems(posts);
         recalculateLayout();
 
