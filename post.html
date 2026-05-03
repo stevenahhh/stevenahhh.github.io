@@ -24,6 +24,18 @@
     .post-content {
       position: relative;
       min-height: 1px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    #post-title {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .post-content :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, td, th) {
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .post-content img {
@@ -214,17 +226,6 @@
       lastWidth: 0,
       resizeTimer: null,
       pretext: null,
-      imageRelayoutCount: 0,
-    }
-
-    const MAX_IMAGE_RELAYOUTS = 5
-
-    function imageTriggeredRelayout() {
-      if (renderState.imageRelayoutCount >= MAX_IMAGE_RELAYOUTS) {
-        return
-      }
-      renderState.imageRelayoutCount += 1
-      renderPretextLayout(true)
     }
 
     let pretextPromise = null
@@ -354,7 +355,7 @@
       return {
         text,
         font: buildFont(spec, marks),
-        breakMode: marks.code ? 'never' : 'normal',
+        breakMode: 'normal',
         extraWidth: marks.code ? INLINE_CODE_EXTRA_WIDTH : 0,
         className: buildPieceClasses(marks),
         href: marks.href || '',
@@ -712,6 +713,101 @@
       return 1
     }
 
+    function shiftFollowingBlocks(blockEl, delta) {
+      let sibling = blockEl.nextElementSibling
+      while (sibling) {
+        if (sibling.classList.contains('pt-block')) {
+          const currentTop = Number.parseInt(sibling.style.top, 10) || 0
+          sibling.style.top = `${currentTop + delta}px`
+        }
+        sibling = sibling.nextElementSibling
+      }
+    }
+
+    function propagateBlockHeightDelta(blockEl, delta) {
+      if (!delta) {
+        return
+      }
+
+      shiftFollowingBlocks(blockEl, delta)
+
+      const container = blockEl.parentElement
+      if (!(container instanceof HTMLElement)) {
+        return
+      }
+
+      const containerHeight = Number.parseInt(container.style.height, 10) || container.offsetHeight
+      if (containerHeight > 0) {
+        container.style.height = `${Math.max(1, containerHeight + delta)}px`
+      }
+
+      const parentBlock = container.closest('.pt-block')
+      if (!(parentBlock instanceof HTMLElement)) {
+        return
+      }
+
+      const parentHeight = Number.parseInt(parentBlock.style.height, 10) || parentBlock.offsetHeight
+      parentBlock.style.height = `${Math.max(1, parentHeight + delta)}px`
+      propagateBlockHeightDelta(parentBlock, delta)
+    }
+
+    function syncMeasuredBlockHeight(blockEl) {
+      if (!(blockEl instanceof HTMLElement)) {
+        return
+      }
+
+      window.requestAnimationFrame(() => {
+        const previousHeight = Number.parseInt(blockEl.style.height, 10) || blockEl.offsetHeight || 0
+        blockEl.style.height = 'auto'
+        const nextHeight = Math.max(1, blockEl.offsetHeight)
+        blockEl.style.height = `${nextHeight}px`
+        propagateBlockHeightDelta(blockEl, nextHeight - previousHeight)
+      })
+    }
+
+    function findIframeByContentWindow(contentWindow) {
+      if (!contentWindow) {
+        return null
+      }
+
+      const iframes = postContentEl.querySelectorAll('iframe')
+      for (const iframe of iframes) {
+        if (iframe.contentWindow === contentWindow) {
+          return iframe
+        }
+      }
+
+      return null
+    }
+
+    function syncIframeContentHeight(iframe) {
+      if (!(iframe instanceof HTMLIFrameElement)) {
+        return false
+      }
+
+      try {
+        const doc = iframe.contentDocument
+        if (!doc) {
+          return false
+        }
+
+        const nextHeight = Math.max(
+          doc.documentElement?.scrollHeight || 0,
+          doc.body?.scrollHeight || 0,
+          1,
+        )
+
+        if (nextHeight > 1) {
+          iframe.style.height = `${nextHeight}px`
+          return true
+        }
+      } catch (_error) {
+        return false
+      }
+
+      return false
+    }
+
     function renderMeasuredDomBlock(host, top, left, width, buildContent) {
       const blockEl = document.createElement('div')
       blockEl.className = 'pt-block'
@@ -723,15 +819,26 @@
       host.appendChild(blockEl)
       const height = blockEl.offsetHeight
       blockEl.style.height = `${height}px`
+      const requestMeasuredBlockSync = () => syncMeasuredBlockHeight(blockEl)
 
       // If the block contains images, re-layout once they load
       // (images inside HTML fallback blocks have 0 height before load)
       const imgs = blockEl.querySelectorAll('img')
+      let hasCompleteImage = false
       for (const img of imgs) {
-        if (!img.complete) {
-          img.addEventListener('load', imageTriggeredRelayout, { once: true })
-          img.addEventListener('error', imageTriggeredRelayout, { once: true })
+        if (img.complete) {
+          hasCompleteImage = true
+          continue
         }
+
+        if (!img.complete) {
+          img.addEventListener('load', requestMeasuredBlockSync, { once: true })
+          img.addEventListener('error', requestMeasuredBlockSync, { once: true })
+        }
+      }
+
+      if (hasCompleteImage) {
+        requestMeasuredBlockSync()
       }
 
       // Watch iframes that resize via postMessage (e.g. the pretext demo widget)
@@ -745,33 +852,29 @@
         const pollInterval = 500
         const pollTimer = setInterval(() => {
           pollCount += 1
-          const oldH = parseInt(blockEl.style.height, 10) || 0
+          let iframeHeightChanged = false
+          for (const iframe of iframes) {
+            iframeHeightChanged = syncIframeContentHeight(iframe) || iframeHeightChanged
+          }
+
+          const oldH = Number.parseInt(blockEl.style.height, 10) || 0
           blockEl.style.height = 'auto'
-          const newH = blockEl.offsetHeight
-          if (newH !== oldH) {
-            blockEl.style.height = `${newH}px`
-            const delta = newH - oldH
-            let sibling = blockEl.nextElementSibling
-            while (sibling) {
-              if (sibling.classList.contains('pt-block')) {
-                const currentTop = parseInt(sibling.style.top, 10) || 0
-                sibling.style.top = `${currentTop + delta}px`
-              }
-              sibling = sibling.nextElementSibling
-            }
-            const container = blockEl.parentElement
-            if (container) {
-              const ch = parseInt(container.style.height, 10) || 0
-              if (ch > 0) {
-                container.style.height = `${ch + delta}px`
-              }
-            }
+          const newH = Math.max(1, blockEl.offsetHeight)
+          blockEl.style.height = `${oldH}px`
+          if (iframeHeightChanged || newH !== oldH) {
+            requestMeasuredBlockSync()
             clearInterval(pollTimer)
-          } else {
-            blockEl.style.height = `${oldH}px`
           }
           if (pollCount >= maxPolls) clearInterval(pollTimer)
         }, pollInterval)
+
+        for (const iframe of iframes) {
+          iframe.addEventListener('load', () => {
+            syncIframeContentHeight(iframe)
+            requestMeasuredBlockSync()
+          }, { once: true })
+          iframe.addEventListener('error', requestMeasuredBlockSync, { once: true })
+        }
       }
 
       return height
@@ -788,8 +891,8 @@
           imgEl.title = block.title
         }
 
-        imgEl.addEventListener('load', imageTriggeredRelayout, { once: true })
-        imgEl.addEventListener('error', imageTriggeredRelayout, { once: true })
+        imgEl.addEventListener('load', () => syncMeasuredBlockHeight(blockEl), { once: true })
+        imgEl.addEventListener('error', () => syncMeasuredBlockHeight(blockEl), { once: true })
 
         if (block.linkHref) {
           const linkEl = document.createElement('a')
@@ -800,6 +903,10 @@
         }
 
         blockEl.appendChild(imgEl)
+
+        if (imgEl.complete) {
+          syncMeasuredBlockHeight(blockEl)
+        }
       })
     }
 
@@ -959,11 +1066,6 @@
         return
       }
 
-      // Width changed → real resize, reset image relayout budget
-      if (nextWidth !== renderState.lastWidth) {
-        renderState.imageRelayoutCount = 0
-      }
-
       try {
         postContentEl.innerHTML = ''
         const totalHeight = renderBlocks(renderState.blocks, postContentEl, nextWidth, renderState.pretext)
@@ -1047,57 +1149,25 @@
       }
 
       const data = event.data
-      if (!data || data.type !== 'parser-js-height' || !data.frameId) {
+      if (!data || (data.type !== 'parser-js-height' && data.type !== 'pretext-demo-height')) {
         return
       }
 
-      const iframe = document.getElementById(data.frameId)
+      const iframe = data.type === 'parser-js-height'
+        ? document.getElementById(data.frameId)
+        : findIframeByContentWindow(event.source)
+
       if (!(iframe instanceof HTMLIFrameElement)) {
         return
       }
 
       const requestedHeight = Math.ceil(Number(data.height))
-      if (!Number.isFinite(requestedHeight) || requestedHeight < 480) {
+      if (!Number.isFinite(requestedHeight) || requestedHeight < 1) {
         return
       }
-
-      const blockEl = iframe.closest('.pt-block')
-      const previousBlockHeight = blockEl instanceof HTMLElement
-        ? (Number.parseInt(blockEl.style.height, 10) || blockEl.offsetHeight)
-        : 0
 
       iframe.style.height = `${requestedHeight}px`
-
-      if (!(blockEl instanceof HTMLElement)) {
-        return
-      }
-
-      window.requestAnimationFrame(() => {
-        const nextBlockHeight = blockEl.offsetHeight
-        const delta = nextBlockHeight - previousBlockHeight
-
-        if (!delta) {
-          blockEl.style.height = `${nextBlockHeight}px`
-          return
-        }
-
-        blockEl.style.height = `${nextBlockHeight}px`
-
-        let sibling = blockEl.nextElementSibling
-        while (sibling) {
-          if (sibling.classList.contains('pt-block')) {
-            const currentTop = Number.parseInt(sibling.style.top, 10) || 0
-            sibling.style.top = `${currentTop + delta}px`
-          }
-          sibling = sibling.nextElementSibling
-        }
-
-        const container = blockEl.parentElement
-        if (container instanceof HTMLElement) {
-          const containerHeight = Number.parseInt(container.style.height, 10) || container.offsetHeight
-          container.style.height = `${Math.max(1, containerHeight + delta)}px`
-        }
-      })
+      syncMeasuredBlockHeight(iframe.closest('.pt-block'))
     }
 
     async function loadPost() {
