@@ -91,3 +91,22 @@ footer {
   margin-right: 0.5rem;
   margin-bottom: 0.5rem;
 }
+
+#post-content .post-wide {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(960px, calc(100vw - 2rem));
+  max-width: 960px;
+}
+
+#post-content .post-wide :is(img, video, iframe, canvas, svg) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+#post-content .post-wide table,
+#post-content .post-wide pre {
+  width: 100%;
+}

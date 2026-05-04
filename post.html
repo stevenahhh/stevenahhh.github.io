@@ -143,6 +143,10 @@
       display: block;
     }
 
+    .pt-dom-content {
+      width: 100%;
+    }
+
     .code-span {
       background: var(--bs-tertiary-bg);
       border-radius: 4px;
@@ -815,15 +819,32 @@
       blockEl.style.left = `${left}px`
       blockEl.style.width = `${width}px`
 
-      buildContent(blockEl)
+      const contentEl = document.createElement('div')
+      contentEl.className = 'pt-dom-content'
+      blockEl.appendChild(contentEl)
+
+      buildContent(contentEl, blockEl)
       host.appendChild(blockEl)
       const height = blockEl.offsetHeight
       blockEl.style.height = `${height}px`
-      const requestMeasuredBlockSync = () => syncMeasuredBlockHeight(blockEl)
+      const requestMeasuredBlockSync = () => {
+        const iframes = contentEl.querySelectorAll('iframe')
+        for (const iframe of iframes) {
+          syncIframeContentHeight(iframe)
+        }
+        syncMeasuredBlockHeight(blockEl)
+      }
+
+      if ('ResizeObserver' in window) {
+        const resizeObserver = new ResizeObserver(() => {
+          requestMeasuredBlockSync()
+        })
+        resizeObserver.observe(contentEl)
+      }
 
       // If the block contains images, re-layout once they load
       // (images inside HTML fallback blocks have 0 height before load)
-      const imgs = blockEl.querySelectorAll('img')
+      const imgs = contentEl.querySelectorAll('img')
       let hasCompleteImage = false
       for (const img of imgs) {
         if (img.complete) {
@@ -844,7 +865,7 @@
       // Watch iframes that resize via postMessage (e.g. the pretext demo widget)
       // Instead of a full re-render (which destroys the iframe causing a reload loop),
       // shift all subsequent absolutely-positioned siblings when the iframe resizes.
-      const iframes = blockEl.querySelectorAll('iframe')
+      const iframes = contentEl.querySelectorAll('iframe')
       if (iframes.length > 0) {
         // Poll iframe height a few times after initial render to catch async resizes
         let pollCount = 0
@@ -881,7 +902,7 @@
     }
 
     function renderImageBlock(block, host, top, left, width) {
-      return renderMeasuredDomBlock(host, top, left, width, blockEl => {
+      return renderMeasuredDomBlock(host, top, left, width, (contentEl, blockEl) => {
         const imgEl = document.createElement('img')
         imgEl.className = 'pt-img'
         imgEl.src = block.href || ''
@@ -898,11 +919,11 @@
           const linkEl = document.createElement('a')
           linkEl.href = block.linkHref
           linkEl.appendChild(imgEl)
-          blockEl.appendChild(linkEl)
+          contentEl.appendChild(linkEl)
           return
         }
 
-        blockEl.appendChild(imgEl)
+        contentEl.appendChild(imgEl)
 
         if (imgEl.complete) {
           syncMeasuredBlockHeight(blockEl)
@@ -911,8 +932,8 @@
     }
 
     function renderHtmlBlock(block, host, top, left, width) {
-      return renderMeasuredDomBlock(host, top, left, width, blockEl => {
-        blockEl.innerHTML = block.html
+      return renderMeasuredDomBlock(host, top, left, width, contentEl => {
+        contentEl.innerHTML = block.html
       })
     }
 
