@@ -1,0 +1,141 @@
+:root {
+  color-scheme: light;
+  --bg: rgba(255,255,255,.92);
+  --panel: rgba(255,255,255,.78);
+  --panel-strong: rgba(255,255,255,.94);
+  --line: rgba(15,23,42,.12);
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: rgba(37,99,235,.08);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: rgba(12,18,30,.88);
+  --panel: rgba(15,23,42,.74);
+  --panel-strong: rgba(15,23,42,.9);
+  --line: rgba(148,163,184,.18);
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --accent: #7dd3fc;
+  --accent-soft: rgba(125,211,252,.12);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: transparent; }
+body {
+  font-family: "Pretendard Variable", -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text);
+}
+
+.demo-shell {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 18px;
+  background: linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 86%, transparent));
+  border: 1px solid transparent;
+}
+
+.demo-header { display: grid; gap: 12px; margin-bottom: 18px; }
+.demo-title-wrap { display: grid; gap: 6px; }
+.demo-title { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -.02em; }
+.demo-copy { margin: 0; font-size: 12px; line-height: 1.55; color: var(--muted); }
+
+.control-card,
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--panel-strong), var(--panel));
+  box-shadow: 0 10px 24px rgba(15,23,42,.06);
+}
+
+.control-card { padding: 14px 16px; margin-bottom: 14px; }
+.control-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-end; margin-bottom: 10px; }
+.control-label { font-size: 12px; font-weight: 600; letter-spacing: -.01em; }
+.control-hint { font-size: 12px; color: var(--muted); }
+input[type="range"] { width: 100%; margin: 0; accent-color: var(--accent); }
+
+.panels { display: grid; gap: 14px; }
+.panel { padding: 14px 16px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.panel-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+.metric { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--accent-soft); font-size: 11px; font-weight: 700; color: var(--accent); }
+
+.viewport {
+  border-radius: 16px;
+  border: 1px dashed var(--line);
+  padding: 14px;
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+}
+
+.viewport-track {
+  width: 100%;
+  min-height: 260px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 6px 0;
+}
+
+.measure-card {
+  position: relative;
+  border-radius: 14px;
+  padding: 18px 18px 22px;
+  background: color-mix(in srgb, var(--panel-strong) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+.measure-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.measure-label strong { font-size: 13px; letter-spacing: -.01em; }
+.measure-label span { font-size: 11px; color: var(--muted); }
+.render-surface { position: relative; overflow: hidden; }
+
+.render-line {
+  position: absolute;
+  left: 0;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 1.75;
+  font-weight: 500;
+  letter-spacing: -.01em;
+}
+
+.render-line strong { font-weight: 700; }
+.render-line em { font-style: italic; }
+.render-line code {
+  font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-strong) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 92%, transparent);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.stat-chip b { font-size: 12px; color: var(--text); }
+
+@media (max-width: 720px) {
+  .demo-shell { padding: 14px; }
+  .panel, .control-card { padding: 13px 14px; }
+  .measure-card { padding: 16px 16px 20px; }
+}

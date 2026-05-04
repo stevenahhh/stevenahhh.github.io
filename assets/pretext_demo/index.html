@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pretext Demo</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="demo-shell">
+    <div class="demo-header">
+      <div class="demo-title-wrap">
+        <h1 class="demo-title">Pretext line wrapping demo</h1>
+        <p class="demo-copy">폭이 바뀔 때 DOM을 다시 재지 않고, 준비해 둔 세그먼트 폭으로만 줄 수와 높이를 다시 계산한다.</p>
+      </div>
+    </div>
+
+    <div class="control-card">
+      <div class="control-top">
+        <div>
+          <div class="control-label">문단 폭</div>
+          <div class="control-hint">슬라이더로 텍스트 폭을 바꾸면 줄 수와 높이가 즉시 다시 계산된다.</div>
+        </div>
+        <div class="metric"><span id="widthValue">560px</span></div>
+      </div>
+      <input id="widthRange" type="range" min="280" max="840" step="1" value="560">
+    </div>
+
+    <div class="panels">
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-label">Pretext render</div>
+          <div class="metric"><span id="lineCount">0 lines</span></div>
+        </div>
+
+        <div class="viewport">
+          <div class="viewport-track">
+            <div class="measure-card" id="measureCard">
+              <div class="measure-label">
+                <strong>계산으로만 다시 접은 문단</strong>
+                <span id="heightValue">0px</span>
+              </div>
+              <div id="surface" class="render-surface"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat-chip"><span>layout mode</span><b>prepared segments</b></div>
+          <div class="stat-chip"><span>DOM measure</span><b>0 during resize</b></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
