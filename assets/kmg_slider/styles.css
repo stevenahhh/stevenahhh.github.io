@@ -121,11 +121,6 @@ body {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 1.2s cubic-bezier(0.19, 1, 0.22, 1);
-}
-
-.fallback img.is-active {
-  opacity: 1;
 }
 
 .slider-content {
@@ -144,10 +139,15 @@ body {
   position: absolute;
   max-width: calc(100% - var(--gap) * 2);
   z-index: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s linear, visibility 0.4s linear;
 }
 
-.slide-content.dsn-active {
+.slide-content.is-active {
   z-index: 1;
+  opacity: 1;
+  visibility: visible;
 }
 
 .slide-content .title {
@@ -161,15 +161,6 @@ body {
   color: var(--font-color);
 }
 
-.slide-content .word,
-.slide-content .char {
-  display: inline-block;
-}
-
-.slide-content .word {
-  white-space: nowrap;
-}
-
 .slide-content .description {
   max-width: 800px;
   min-height: 60px;
@@ -179,18 +170,6 @@ body {
   font-weight: 500;
   line-height: 24px;
   color: #fff;
-  transition: 1.2s cubic-bezier(0.19, 1, 0.22, 1);
-}
-
-.slide-content:not(.dsn-active) .title,
-.slide-content:not(.dsn-active) .description {
-  opacity: 0;
-  visibility: hidden;
-}
-
-.slide-content:not(.dsn-active-animate) .description {
-  opacity: 0;
-  transform: translateY(50%);
 }
 
 .control-nav {
@@ -213,26 +192,16 @@ body {
 
 .paginate {
   position: relative;
-  display: grid;
+  display: flex;
+  align-items: center;
   max-width: calc(45% - 30px);
 }
 
-.nav-slide {
-  grid-area: 1 / 1;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-}
-
-.nav-slide.is-active {
-  pointer-events: auto;
-}
-
-.next-paginate .nav-slide {
+.next-paginate {
   justify-content: flex-end;
 }
 
-.nav-slide h6 {
+.paginate h6 {
   margin: 0;
   font-family: var(--heading-font);
   font-size: 20px;
@@ -243,16 +212,8 @@ body {
   color: var(--heading-color);
 }
 
-.nav-slide .word,
-.nav-slide .char,
 .nav-arrow {
   display: inline-block;
-  transition-property: transform, opacity;
-  transition-timing-function: ease;
-  transition-duration: 0ms;
-}
-
-.nav-arrow {
   position: relative;
   width: 50px;
   height: 50px;
@@ -302,10 +263,6 @@ body {
 
 .prev-paginate svg.arrow {
   transform: translate(-50%, -50%) rotate(180deg);
-}
-
-.nav-slide:not(.is-active) svg {
-  opacity: 0;
 }
 
 .nav-arrow:focus-visible {
@@ -408,7 +365,7 @@ body {
 }
 
 @media (max-width: 575px) {
-  .nav-slide .box-title {
+  .paginate .box-title {
     display: none;
   }
 
