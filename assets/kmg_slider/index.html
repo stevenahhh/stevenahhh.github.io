@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Displacement hero slider</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap">
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=excon@500&display=swap">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <section class="kmg-slider" id="kmg-slider" aria-roledescription="carousel" aria-label="사진 슬라이드">
+    <div class="content-slider">
+      <div class="bg-container" data-overlay="2">
+        <canvas class="gl-canvas" aria-hidden="true"></canvas>
+        <div class="fallback" aria-hidden="true"></div>
+      </div>
+
+      <div class="slider-content">
+        <div class="slide-content dsn-active dsn-active-animate" data-src="/assets/images/sample_portfolio/3.jpg" data-overlay="2">
+          <h2 class="title">Chungking</h2>
+          <p class="description">A snack bar under fluorescent light, a payphone that never rings, and the same song played one more time than anyone asked for.</p>
+        </div>
+        <div class="slide-content" data-src="/assets/images/sample_portfolio/2.jpg" data-overlay="5">
+          <h2 class="title">California <br> Dreamin'</h2>
+          <p class="description">The jukebox keeps spinning the same record. Some things repeat long enough that they start to mean something.</p>
+        </div>
+        <div class="slide-content" data-src="/assets/images/sample_portfolio/5.jpg" data-overlay="2">
+          <h2 class="title">Expiry <br> Date</h2>
+          <p class="description">Everything comes with an expiry date. Even the crowd on the escalator is only passing through on its way somewhere else.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-nav">
+      <div class="paginate prev-paginate" data-side="prev"></div>
+      <div class="pagination" aria-live="polite">
+        <span class="current">01</span>
+        <span class="slash">/ </span>
+        <span class="total"> 3</span>
+      </div>
+      <div class="paginate next-paginate" data-side="next"></div>
+    </div>
+  </section>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
