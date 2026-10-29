@@ -48,15 +48,12 @@
       <div id="portfolio-masonry" style="position: relative;"></div>
 
       <script type="module">
-        import { prepare, layout } from '/assets/js/pretext.js';
-
         const GAP = 16;
         const CARD_PADDING_X = 16;
         const CARD_PADDING_TOP = 16;
         const CARD_PADDING_BOTTOM = 16;
         const CAPTION_MARGIN_TOP = 12;
         const CAPTION_LINE_HEIGHT = 22.4;
-        const CAPTION_FONT = '500 14px "Pretendard Variable"';
         const portfolioItems = [
           {
             src: '/assets/images/sample_portfolio/1.jpg',
@@ -84,7 +81,6 @@
 
         if (masonryContainer instanceof HTMLDivElement) {
           const cards = portfolioItems.map((item) => {
-            const preparedCaption = prepare(item.alt, CAPTION_FONT);
             const card = document.createElement('article');
             card.className = 'rounded shadow-sm';
             card.style.position = 'absolute';
@@ -119,7 +115,6 @@
               card,
               image,
               caption,
-              preparedCaption,
               naturalWidth: 0,
               naturalHeight: 0
             };
@@ -161,9 +156,13 @@
             const columnHeights = new Array(columnCount).fill(0);
 
             cards.forEach((entry) => {
+              entry.caption.style.width = `${captionWidth}px`;
+            });
+
+            cards.forEach((entry) => {
               const imageHeight = columnWidth * (entry.naturalHeight / entry.naturalWidth);
-              const captionMetrics = layout(entry.preparedCaption, captionWidth, CAPTION_LINE_HEIGHT);
-              const cardHeight = imageHeight + CARD_PADDING_TOP + CAPTION_MARGIN_TOP + captionMetrics.height + CARD_PADDING_BOTTOM;
+              const captionHeight = entry.caption.offsetHeight;
+              const cardHeight = imageHeight + CARD_PADDING_TOP + CAPTION_MARGIN_TOP + captionHeight + CARD_PADDING_BOTTOM;
               const shortestColumnHeight = Math.min(...columnHeights);
               const columnIndex = columnHeights.indexOf(shortestColumnHeight);
               const left = columnIndex * (columnWidth + GAP);
@@ -172,7 +171,6 @@
               entry.card.style.width = `${columnWidth}px`;
               entry.card.style.left = `${left}px`;
               entry.card.style.top = `${top}px`;
-              entry.caption.style.width = `${captionWidth}px`;
               entry.card.style.opacity = '1';
 
               columnHeights[columnIndex] += cardHeight + GAP;

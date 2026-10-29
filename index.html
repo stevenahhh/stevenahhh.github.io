@@ -41,9 +41,8 @@
   </nav>
 
   <main class="container flex-shrink-0">
-    <div id="virtual-list-viewport" style="min-height: 80vh; position: relative;">
-      <div id="virtual-list-spacer"></div>
-      <div id="virtual-list-content" style="position: absolute; top: 0; left: 0; width: 100%;"></div>
+    <div id="virtual-list-viewport" style="min-height: 80vh;">
+      <div id="virtual-list-content"></div>
     </div>
   </main>
 
@@ -61,177 +60,45 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script type="module">
-    import { prepare, layout } from '/assets/js/pretext.js';
-
-    const TITLE_FONT = '500 20px "Pretendard Variable"';
-    const YEAR_FONT = '600 32px "Pretendard Variable"';
-    const TITLE_LINE_HEIGHT = 32;
-    const YEAR_LINE_HEIGHT = 38.4;
-    const DATE_LINE_HEIGHT = 22.4;
-    const DATE_WIDTH = 100;
-    const POST_MARGIN_BOTTOM = 8;
-    const YEAR_MARGIN_TOP = 32;
-    const YEAR_MARGIN_BOTTOM = 16;
-    const OVERSCAN = 300;
-
-    const viewport = document.getElementById('virtual-list-viewport');
-    const spacer = document.getElementById('virtual-list-spacer');
     const content = document.getElementById('virtual-list-content');
     const themeToggle = document.getElementById('theme-toggle');
 
-    let allItems = [];
-    let offsets = [];
-    let totalHeight = 0;
-    let currentLayoutWidth = 0;
-
-    function createItems(posts) {
-      const items = [];
+    function renderPosts(posts) {
+      const fragment = document.createDocumentFragment();
       let currentYear = null;
 
       posts.forEach((post) => {
         if (post.year !== currentYear) {
           currentYear = post.year;
-          items.push({
-            type: 'header',
-            content: currentYear,
-            prepared: prepare(String(currentYear), YEAR_FONT),
-            height: 0,
-          });
+          const year = document.createElement('h1');
+          year.className = 'archive-year';
+          year.textContent = String(currentYear);
+          fragment.appendChild(year);
         }
 
-        items.push({
-          type: 'post',
-          content: post,
-          prepared: prepare(post.title, TITLE_FONT),
-          height: 0,
-        });
+        const item = document.createElement('div');
+        item.className = 'archive-item';
+
+        const link = document.createElement('a');
+        link.className = 'archive-title';
+        link.href = post.url;
+        link.textContent = post.title;
+
+        const date = document.createElement('span');
+        date.className = 'archive-date text-muted font-monospace';
+        date.textContent = post.date;
+
+        item.append(link, date);
+        fragment.appendChild(item);
       });
 
-      return items;
-    }
-
-    function getContainerWidth() {
-      return Math.max(0, viewport.clientWidth || viewport.getBoundingClientRect().width || 0);
-    }
-
-    function updateOffsets() {
-      offsets = new Array(allItems.length);
-      let runningOffset = 0;
-
-      for (let i = 0; i < allItems.length; i += 1) {
-        offsets[i] = runningOffset;
-        runningOffset += allItems[i].height;
-      }
-
-      totalHeight = runningOffset;
-      spacer.style.height = `${totalHeight}px`;
-    }
-
-    function recalculateLayout() {
-      const containerWidth = getContainerWidth();
-      if (!containerWidth) {
-        return;
-      }
-
-      currentLayoutWidth = containerWidth;
-      const titleWidth = Math.max(0, containerWidth - DATE_WIDTH);
-
-      allItems.forEach((item) => {
-        if (item.type === 'header') {
-          const headerLayout = layout(item.prepared, containerWidth, YEAR_LINE_HEIGHT);
-          item.height = headerLayout.height + YEAR_MARGIN_TOP + YEAR_MARGIN_BOTTOM;
-          return;
-        }
-
-        const titleLayout = layout(item.prepared, titleWidth, TITLE_LINE_HEIGHT);
-        item.height = Math.max(titleLayout.height, DATE_LINE_HEIGHT) + POST_MARGIN_BOTTOM;
-      });
-
-      updateOffsets();
-    }
-
-    function findStartIndex(targetOffset) {
-      let low = 0;
-      let high = allItems.length - 1;
-      let result = allItems.length;
-
-      while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        const itemBottom = offsets[mid] + allItems[mid].height;
-
-        if (itemBottom > targetOffset) {
-          result = mid;
-          high = mid - 1;
-        } else {
-          low = mid + 1;
-        }
-      }
-
-      return result;
-    }
-
-    function render() {
-      if (!allItems.length || !currentLayoutWidth) {
-        return;
-      }
-
-      const scrollTop = window.scrollY;
-      const viewportHeight = window.innerHeight;
-      const viewportOffset = viewport.offsetTop;
-      const relativeScrollTop = Math.max(0, scrollTop - viewportOffset);
-      const startOffset = Math.max(0, relativeScrollTop - OVERSCAN);
-      const endOffset = relativeScrollTop + viewportHeight + OVERSCAN;
-      const startIndex = findStartIndex(startOffset);
-
-      let endIndex = startIndex;
-      while (endIndex < allItems.length && offsets[endIndex] < endOffset) {
-        endIndex += 1;
-      }
-
-      const firstVisibleOffset = startIndex < offsets.length ? offsets[startIndex] : totalHeight;
-      content.innerHTML = '';
-      content.style.transform = `translateY(${firstVisibleOffset}px)`;
-
-      for (let i = startIndex; i < endIndex; i += 1) {
-        const item = allItems[i];
-        const div = document.createElement('div');
-        div.className = 'virtual-item';
-        div.style.height = `${item.height}px`;
-
-        if (item.type === 'header') {
-          div.innerHTML = `<h1 class="archive-year">${item.content}</h1>`;
-        } else {
-          div.innerHTML = `
-                        <div class="archive-item">
-                            <a href="${item.content.url}" class="archive-title">${item.content.title}</a>
-                            <span class="archive-date text-muted font-monospace">${item.content.date}</span>
-                        </div>
-                    `;
-        }
-
-        content.appendChild(div);
-      }
-    }
-
-    function handleResize() {
-      const nextWidth = getContainerWidth();
-      if (!nextWidth || nextWidth === currentLayoutWidth) {
-        render();
-        return;
-      }
-
-      recalculateLayout();
-      render();
+      content.replaceChildren(fragment);
     }
 
     async function init() {
       try {
         const response = await fetch('/assets/data/posts.json');
         const posts = await response.json();
-
-        if (document.fonts?.ready) {
-          await document.fonts.ready;
-        }
 
         posts.sort((a, b) => {
           const dateDiff = new Date(b.date) - new Date(a.date);
@@ -243,13 +110,7 @@
           const sequenceB = Number.isFinite(b.sequence) ? b.sequence : Number.MAX_SAFE_INTEGER;
           return sequenceA - sequenceB;
         });
-        allItems = createItems(posts);
-        recalculateLayout();
-
-        window.addEventListener('scroll', render, { passive: true });
-        window.addEventListener('resize', handleResize);
-
-        render();
+        renderPosts(posts);
       } catch (e) {
         console.error('Failed to load posts', e);
       }

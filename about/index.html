@@ -127,54 +127,15 @@
   -->
 
   <script type="module">
-    import { prepare, layout } from '/assets/js/pretext.js';
-
-    const TEXT_FONT = '500 16px "Pretendard Variable"';
-    const TEXT_LINE_HEIGHT = 25.6;
-    const SECTION_PADDING_BOTTOM = 16;
-    const CHIP_ROW_HEIGHT = 32;
-    const CHIP_ROW_GAP = 8;
-    const CHIP_TOP_MARGIN = 16;
-    const CHIP_LAYOUT_PADDING = 8;
-    const CONTAINER_MAX_WIDTH = 672;
-    const CONTAINER_HORIZONTAL_PADDING = 24;
-
     const sections = Array.from(document.querySelectorAll('[data-accordion-section]')).map((section) => ({
       element: section,
       toggle: section.querySelector('[data-accordion-toggle]'),
       panel: section.querySelector('[data-accordion-panel]'),
-      key: section.dataset.sectionKey || '',
       isOpen: section.dataset.open === 'true',
     }));
 
-    const preparedContent = {
-      me: prepare('enjoying programming web', TEXT_FONT),
-      skills: prepare('HTML & CSS JavaScript Python don\'t ask me', TEXT_FONT),
-      contact: prepare('crag-dune0r@icloud.com', TEXT_FONT),
-    };
-
-    function getContentWidth() {
-      return Math.max(0, Math.min(CONTAINER_MAX_WIDTH, window.innerWidth - CONTAINER_HORIZONTAL_PADDING));
-    }
-
-    function getChipHeight(width) {
-      const chipLayout = layout(preparedContent.skills, Math.max(1, width), TEXT_LINE_HEIGHT);
-      const estimatedRows = Math.max(1, chipLayout.lineCount || 1);
-      return CHIP_TOP_MARGIN + (estimatedRows * CHIP_ROW_HEIGHT) + ((estimatedRows - 1) * CHIP_ROW_GAP) + CHIP_LAYOUT_PADDING;
-    }
-
     function getExpandedHeight(section) {
-      const width = getContentWidth();
-      if (!width) {
-        return 0;
-      }
-
-      if (section.key === 'skills') {
-        return getChipHeight(width) + SECTION_PADDING_BOTTOM;
-      }
-
-      const content = section.key === 'contact' ? preparedContent.contact : preparedContent.me;
-      return layout(content, width, TEXT_LINE_HEIGHT).height + SECTION_PADDING_BOTTOM;
+      return section.panel.scrollHeight;
     }
 
     function syncSection(section) {
