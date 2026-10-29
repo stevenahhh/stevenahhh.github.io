@@ -1,5 +1,6 @@
 const INTENSITY = -2
-const SECONDS_PER_SLIDE = 1.2
+const EASE_SECONDS = 1.6
+const EASE_RATE = (10 * Math.LN2) / EASE_SECONDS
 const AUTOPLAY_MS = 20000
 const TILE_COLUMNS = 48
 const TILE_ROWS = 30
@@ -247,14 +248,16 @@ function tick(now) {
   const seconds = Math.min(Math.max((now - lastTime) / 1000, 0), 0.1)
   lastTime = now
   const remaining = target - position
-  if (Math.abs(remaining) < 1e-4) {
+  if (Math.abs(remaining) < 1e-3) {
     position = target
     render()
     frame = 0
     return
   }
-  const speed = Math.max(1, Math.abs(remaining)) / SECONDS_PER_SLIDE
-  position += Math.sign(remaining) * Math.min(Math.abs(remaining), speed * seconds)
+  // Closing a fixed fraction of the gap per second is exactly GSAP's expo.out
+  // (1 - 2^(-10t/1.6)), but the curve restarts from wherever we are, so a new
+  // click mid-transition bends the motion instead of resetting it.
+  position += remaining * (1 - Math.exp(-EASE_RATE * seconds))
   render()
   frame = requestAnimationFrame(tick)
 }
