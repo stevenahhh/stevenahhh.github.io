@@ -1,9 +1,8 @@
 const INTENSITY = -2
 const SECONDS_PER_SLIDE = 1.2
 const AUTOPLAY_MS = 20000
-const RIB_COUNT = 18
-const RIB_LOW = 0.02
-const RIB_HIGH = 0.3
+const TILE_COLUMNS = 48
+const TILE_ROWS = 30
 
 const root = document.getElementById('kmg-slider')
 const bgContainer = root.querySelector('.bg-container')
@@ -72,22 +71,35 @@ void main() {
   gl_FragColor = mix(t1, t2, dispFactor);
 }`
 
-// Fluted glass: every vertical rib is a ramp from RIB_LOW to RIB_HIGH, so each
-// rib shifts its strip of the photo by a growing amount and the strip edges
-// jump back at the next rib. The cosine ramp rounds the rib like a lens.
+// Same idea as the theme's triangle mosaic, with square tiles: every tile is
+// one flat random gray, so each tile shifts its piece of the photo by its own
+// amount. Gray levels follow the brightness histogram of the original map
+// (mostly mid-gray, some dark, a few very bright tiles).
 function makeDisplacementCanvas() {
-  const width = 1024
+  const cell = 11
   const map = document.createElement('canvas')
-  map.width = width
-  map.height = 4
+  map.width = TILE_COLUMNS * cell
+  map.height = TILE_ROWS * cell
   const context = map.getContext('2d')
-  const ribWidth = width / RIB_COUNT
-  for (let x = 0; x < width; x += 1) {
-    const local = (x % ribWidth) / ribWidth
-    const rounded = 0.5 - 0.5 * Math.cos(local * Math.PI)
-    const value = Math.round((RIB_LOW + (RIB_HIGH - RIB_LOW) * rounded) * 255)
-    context.fillStyle = `rgb(${value},${value},${value})`
-    context.fillRect(x, 0, 1, map.height)
+  let seed = 7
+  const random = () => {
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  const gray = () => {
+    const pick = random()
+    if (pick < 0.7) return 75 + random() * 80
+    if (pick < 0.9) return 26 + random() * 50
+    return 205 + random() * 30
+  }
+  for (let row = 0; row < TILE_ROWS; row += 1) {
+    for (let column = 0; column < TILE_COLUMNS; column += 1) {
+      const value = Math.round(gray())
+      context.fillStyle = `rgb(${value},${value},${value})`
+      context.fillRect(column * cell, row * cell, cell, cell)
+    }
   }
   return map
 }
